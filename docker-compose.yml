@@ -1,0 +1,13 @@
+services:
+  nl-weather:
+    build: .
+    ports:
+      - "3100:3100"
+    environment:
+      - LATITUDE=52.37
+      - LONGITUDE=4.89
+      - LOCATION_NAME=Amsterdam
+      - PROVINCE=Noord-Holland
+      - KNMI_API_KEY=${KNMI_API_KEY:-}
+      - HA_WEBHOOK_URL=${HA_WEBHOOK_URL:-}
+    restart: unless-stopped
