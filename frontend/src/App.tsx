@@ -43,19 +43,8 @@ export default function App() {
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto" style={{ padding: 'var(--space-lg)' }}>
         {/* Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between" style={{ gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
+        <header className="flex items-center justify-between" style={{ marginBottom: 'var(--space-xl)' }}>
           <div>
-            <h1 className="font-semibold" style={{ fontSize: 'var(--text-xl)', color: 'var(--color-text-bright)', letterSpacing: '-0.01em' }}>
-              {selectedLocation?.name || config?.locationName || 'NL Weather'}
-            </h1>
-            {selectedLocation && (
-              <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-sm)', marginTop: '2px' }}>
-                {selectedLocation.latitude.toFixed(2)}°N, {selectedLocation.longitude.toFixed(2)}°E
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center" style={{ gap: 'var(--space-sm)' }}>
             <LocationPicker
               locations={locations}
               selectedLocation={selectedLocation}
@@ -63,13 +52,20 @@ export default function App() {
               onAdd={addLocation}
               onRemove={removeLocation}
               onGps={updateGpsLocation}
+              locationName={config?.locationName}
             />
-            {forecast && (
-              <span className="hidden sm:inline" style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>
-                {formatDateTime(forecast.fetchedAt)}
-              </span>
+            {selectedLocation && (
+              <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-sm)', marginTop: '2px' }}>
+                {selectedLocation.latitude.toFixed(2)}°N, {selectedLocation.longitude.toFixed(2)}°E
+              </p>
             )}
           </div>
+
+          {forecast && (
+            <span className="hidden sm:inline" style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>
+              {formatDateTime(forecast.fetchedAt)}
+            </span>
+          )}
         </header>
 
         {forecastError && (

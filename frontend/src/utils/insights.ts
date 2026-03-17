@@ -171,12 +171,14 @@ function temperatureInsight(forecast: MultiModelForecast | null): WeatherInsight
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
 
-  // Find today's max per model (daytime hours 06-21)
+  // Find today's max temp and feels-like max per model (daytime hours 06-21)
   const todayMaxPerModel: number[] = [];
+  const todayFeelsMaxPerModel: number[] = [];
   const tomorrowMaxPerModel: number[] = [];
 
   for (const model of modelEntries) {
     let todayMax = -Infinity;
+    let todayFeelsMax = -Infinity;
     let tomorrowMax = -Infinity;
     for (let i = 0; i < times.length; i++) {
       const t = times[i];
@@ -184,42 +186,59 @@ function temperatureInsight(forecast: MultiModelForecast | null): WeatherInsight
       if (hour < 6 || hour > 21) continue;
       if (t.startsWith(todayStr)) {
         todayMax = Math.max(todayMax, model.temperature_2m[i]);
+        if (model.apparent_temperature && model.apparent_temperature[i] != null) {
+          todayFeelsMax = Math.max(todayFeelsMax, model.apparent_temperature[i]);
+        }
       } else if (t.startsWith(tomorrowStr)) {
         tomorrowMax = Math.max(tomorrowMax, model.temperature_2m[i]);
       }
     }
     if (todayMax > -Infinity) todayMaxPerModel.push(todayMax);
+    if (todayFeelsMax > -Infinity) todayFeelsMaxPerModel.push(todayFeelsMax);
     if (tomorrowMax > -Infinity) tomorrowMaxPerModel.push(tomorrowMax);
   }
 
   if (todayMaxPerModel.length === 0) return null;
 
   const todayAvgMax = avg(todayMaxPerModel);
-  let trend = '';
+  const spread = Math.max(...todayMaxPerModel) - Math.min(...todayMaxPerModel);
 
+  // Build main text with spread-aware display
+  let text: string;
+  if (spread >= 2) {
+    // Significant model disagreement — show range
+    text = `Vandaag max ${Math.round(Math.min(...todayMaxPerModel))}–${Math.round(Math.max(...todayMaxPerModel))}°`;
+  } else {
+    text = `Vandaag max ${Math.round(todayAvgMax)}°`;
+  }
+
+  // Add feels-like if notably different (≥2° from actual)
+  if (todayFeelsMaxPerModel.length > 0) {
+    const todayAvgFeelsMax = avg(todayFeelsMaxPerModel);
+    if (Math.abs(todayAvgMax - todayAvgFeelsMax) >= 2) {
+      text += `, voelt als ${Math.round(todayAvgFeelsMax)}°`;
+    }
+  }
+
+  // Add tomorrow trend
   if (tomorrowMaxPerModel.length > 0) {
     const tomorrowAvgMax = avg(tomorrowMaxPerModel);
     const diff = tomorrowAvgMax - todayAvgMax;
-    if (diff >= 3) trend = 'morgen een stuk warmer';
-    else if (diff >= 1.5) trend = 'morgen iets warmer';
-    else if (diff <= -3) trend = 'morgen flink kouder';
-    else if (diff <= -1.5) trend = 'morgen iets kouder';
-    else trend = 'morgen vergelijkbaar';
+    if (diff >= 3) text += '. Morgen een stuk warmer';
+    else if (diff >= 1.5) text += '. Morgen iets warmer';
+    else if (diff <= -3) text += '. Morgen flink kouder';
+    else if (diff <= -1.5) text += '. Morgen iets kouder';
+    else text += '. Morgen vergelijkbaar';
   }
 
-  let text = `Vandaag maximaal ${Math.round(todayAvgMax)}°`;
-  if (trend) text += `, ${trend}`;
-
-  // Show model spread and consensus
-  const spread = Math.max(...todayMaxPerModel) - Math.min(...todayMaxPerModel);
-  if (spread >= 2) {
-    text += ` (modellen ${Math.round(Math.min(...todayMaxPerModel))}°–${Math.round(Math.max(...todayMaxPerModel))}°)`;
-  }
-
+  // Subtext: consensus info
   const tempConsensus = consensusLevel(todayMaxPerModel, 2, 4);
-  const subtext = tempConsensus !== 'high'
-    ? `${CONSENSUS_LABELS[tempConsensus]} over de maximumtemperatuur`
-    : undefined;
+  const parts: string[] = [];
+  parts.push(`Gem. van ${todayMaxPerModel.length} modellen`);
+  if (tempConsensus !== 'high') {
+    parts.push(`${CONSENSUS_LABELS[tempConsensus]} (spreiding ${spread.toFixed(1)}°)`);
+  }
+  const subtext = parts.join(' · ');
 
   return { icon: '🌡️', text, subtext, type: 'temperature' };
 }
@@ -461,11 +480,12 @@ export function generateInsights(data: InsightData): WeatherInsight[] {
   const wind = windInsight(data.forecast);
   if (wind) insights.push(wind);
 
-  const stook = stookwijzerInsight(data.stookwijzer);
-  if (stook) insights.push(stook);
-
   const outlook = outlookInsight(data.forecast);
   if (outlook) insights.push(outlook);
+
+  // Stookwijzer last — practical tip at the bottom
+  const stook = stookwijzerInsight(data.stookwijzer);
+  if (stook) insights.push(stook);
 
   return insights;
 }
