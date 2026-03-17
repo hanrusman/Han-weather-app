@@ -163,7 +163,7 @@ function currentInsight(
 
   const compass = degreesToCompass(avgWindDir);
   const bft = kmhToBeaufort(avgWind);
-  const currentConsensus = consensusLevel(models.map((m) => m.temperature), 2, 4);
+  const currentConsensus = consensusLevel(models.map((m) => m.temperature), 3, 5);
   const consensusNote = currentConsensus !== 'high' ? ` · ${CONSENSUS_LABELS[currentConsensus]}` : '';
 
   // Build rich subtext: wind + humidity + pressure + sunrise/sunset + UV
@@ -264,7 +264,7 @@ function temperatureInsight(forecast: MultiModelForecast | null): WeatherInsight
   }
 
   // Subtext: consensus info
-  const tempConsensus = consensusLevel(todayMaxPerModel, 2, 4);
+  const tempConsensus = consensusLevel(todayMaxPerModel, 3, 5);
   const parts: string[] = [];
   parts.push(`Gem. van ${todayMaxPerModel.length} modellen`);
   if (tempConsensus !== 'high') {

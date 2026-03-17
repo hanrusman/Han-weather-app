@@ -19,7 +19,7 @@ test.describe('NL Weather Dashboard', () => {
     // The chart section title should be visible
     await expect(page.getByRole('heading', { name: 'Temperatuur' })).toBeVisible();
     // Model legend should show at least one model
-    await expect(page.getByText('KNMI HARMONIE')).toBeVisible();
+    await expect(page.getByText('🇳🇱 KNMI')).toBeVisible();
   });
 
   test('variable tabs switch chart content', async ({ page }) => {

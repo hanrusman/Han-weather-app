@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MultiModelForecast, ModelId } from '../types/weather';
 import { getWeatherInfo } from '../utils/weatherCodes';
-import { formatTemp, formatPrecip, degreesToCompass } from '../utils/formatting';
+import { formatTemp, formatPrecip, degreesToCompass, kmhToBeaufort } from '../utils/formatting';
 
 interface DailyForecastProps {
   forecast: MultiModelForecast;
@@ -21,6 +21,9 @@ interface DayData {
   windDirSin: number;
   windDirCos: number;
   windDirCount: number;
+  maxWindSpeed: number;
+  maxFeelsLike: number;
+  totalSunshine: number;
 }
 
 export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
@@ -51,12 +54,18 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
         windDirSin: 0,
         windDirCos: 0,
         windDirCount: 0,
+        maxWindSpeed: 0,
+        maxFeelsLike: -Infinity,
+        totalSunshine: 0,
       });
     }
 
     const day = dayMap.get(date)!;
     const allTemps: number[] = [];
+    const allWinds: number[] = [];
+    const allFeels: number[] = [];
     let maxPrecip = 0;
+    let sunshineSec = 0;
 
     for (const [, hourly] of models) {
       if (hourly.temperature_2m[i] !== undefined) {
@@ -64,6 +73,15 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
       }
       if (hourly.precipitation[i] !== undefined) {
         maxPrecip = Math.max(maxPrecip, hourly.precipitation[i]);
+      }
+      if (hourly.wind_speed_10m[i] !== undefined) {
+        allWinds.push(hourly.wind_speed_10m[i]);
+      }
+      if (hourly.apparent_temperature?.[i] !== undefined) {
+        allFeels.push(hourly.apparent_temperature[i]);
+      }
+      if (hourly.sunshine_duration?.[i] !== undefined) {
+        sunshineSec += hourly.sunshine_duration[i];
       }
       // Accumulate wind direction using circular mean (sin/cos)
       if (hourly.wind_direction_10m?.[i] != null) {
@@ -73,6 +91,17 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
         day.windDirCount++;
       }
     }
+
+    if (allWinds.length > 0) {
+      const avgWind = allWinds.reduce((s, v) => s + v, 0) / allWinds.length;
+      day.maxWindSpeed = Math.max(day.maxWindSpeed, avgWind);
+    }
+    if (allFeels.length > 0) {
+      const avgFeels = allFeels.reduce((s, v) => s + v, 0) / allFeels.length;
+      day.maxFeelsLike = Math.max(day.maxFeelsLike, avgFeels);
+    }
+    // Divide sunshine by model count (summed across all models for this hour)
+    day.totalSunshine += sunshineSec / (models.length || 1);
 
     if (allTemps.length > 0) {
       const avg = allTemps.reduce((s, v) => s + v, 0) / allTemps.length;
@@ -178,9 +207,9 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
                   height: 6,
                   borderRadius: '50%',
                   backgroundColor:
-                    day.consensusSpread < 2
+                    day.consensusSpread < 3
                       ? 'var(--color-success)'
-                      : day.consensusSpread < 4
+                      : day.consensusSpread < 5
                         ? 'var(--color-warning)'
                         : 'var(--color-danger)',
                   flexShrink: 0,
@@ -220,6 +249,18 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
               </span>
               <span style={{ width: 48, textAlign: 'right', color: day.totalPrecip > 0.1 ? '#60a5fa' : 'transparent', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
                 {day.totalPrecip > 0.1 ? formatPrecip(day.totalPrecip) : ''}
+              </span>
+              {/* Sunshine hours */}
+              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                {day.totalSunshine > 0 ? `☀${Math.round(day.totalSunshine / 3600)}u` : ''}
+              </span>
+              {/* Wind in Beaufort */}
+              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                {`${kmhToBeaufort(day.maxWindSpeed)} bft`}
+              </span>
+              {/* Feels-like max */}
+              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                {day.maxFeelsLike > -Infinity ? formatTemp(day.maxFeelsLike) : ''}
               </span>
             </div>
           );

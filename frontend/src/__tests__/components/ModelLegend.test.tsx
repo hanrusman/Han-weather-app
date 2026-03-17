@@ -16,11 +16,11 @@ describe('ModelLegend', () => {
     render(
       <ModelLegend allModels={allModels} isEnabled={() => true} onToggle={() => {}} />
     );
-    expect(screen.getByText('KNMI HARMONIE')).toBeInTheDocument();
-    expect(screen.getByText('ECMWF IFS')).toBeInTheDocument();
-    expect(screen.getByText('DWD ICON')).toBeInTheDocument();
-    expect(screen.getByText('NOAA GFS')).toBeInTheDocument();
-    expect(screen.getByText('Météo-France')).toBeInTheDocument();
+    expect(screen.getByText('🇳🇱 KNMI')).toBeInTheDocument();
+    expect(screen.getByText('🇪🇺 ECMWF')).toBeInTheDocument();
+    expect(screen.getByText('🇩🇪 DWD ICON')).toBeInTheDocument();
+    expect(screen.getByText('🇺🇸 NOAA GFS')).toBeInTheDocument();
+    expect(screen.getByText('🇫🇷 Météo-France')).toBeInTheDocument();
   });
 
   it('calls onToggle when a model is clicked', () => {
@@ -28,7 +28,7 @@ describe('ModelLegend', () => {
     render(
       <ModelLegend allModels={allModels} isEnabled={() => true} onToggle={onToggle} />
     );
-    fireEvent.click(screen.getByText('ECMWF IFS'));
+    fireEvent.click(screen.getByText('🇪🇺 ECMWF'));
     expect(onToggle).toHaveBeenCalledWith('ecmwf_ifs025');
   });
 });

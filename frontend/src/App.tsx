@@ -85,20 +85,12 @@ export default function App() {
           airQuality={airQuality}
         />
 
-        {/* Context row: radar + 7-day forecast */}
-        <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
-          <div>
-            <RadarMap
-              latitude={selectedLocation?.latitude ?? config?.latitude ?? 52.37}
-              longitude={selectedLocation?.longitude ?? config?.longitude ?? 4.89}
-            />
+        {/* Daily forecast — full width */}
+        {forecast && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <DailyForecast forecast={forecast} enabledModels={enabledModels} />
           </div>
-          <div className="lg:col-span-2">
-            {forecast && (
-              <DailyForecast forecast={forecast} enabledModels={enabledModels} />
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Deep dive: model charts */}
         {forecast && (
@@ -120,12 +112,16 @@ export default function App() {
           </div>
         )}
 
-        {/* External links */}
-        {selectedLocation && (
-          <div style={{ marginTop: 'var(--space-lg)' }}>
+        {/* Bottom row: radar + external links */}
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+          <RadarMap
+            latitude={selectedLocation?.latitude ?? config?.latitude ?? 52.37}
+            longitude={selectedLocation?.longitude ?? config?.longitude ?? 4.89}
+          />
+          {selectedLocation && (
             <ExternalLinks latitude={selectedLocation.latitude} longitude={selectedLocation.longitude} />
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Footer */}
         <footer className="text-center" style={{ marginTop: 'var(--space-2xl)', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>

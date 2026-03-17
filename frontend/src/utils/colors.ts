@@ -9,11 +9,11 @@ export const MODEL_COLORS: Record<ModelId, string> = {
 };
 
 export const MODEL_LABELS: Record<ModelId, string> = {
-  knmi_seamless: 'KNMI HARMONIE',
-  ecmwf_ifs025: 'ECMWF IFS',
-  icon_seamless: 'DWD ICON',
-  gfs_seamless: 'NOAA GFS',
-  meteofrance_seamless: 'Météo-France',
+  knmi_seamless: '🇳🇱 KNMI',
+  ecmwf_ifs025: '🇪🇺 ECMWF',
+  icon_seamless: '🇩🇪 DWD ICON',
+  gfs_seamless: '🇺🇸 NOAA GFS',
+  meteofrance_seamless: '🇫🇷 Météo-France',
 };
 
 export const STOOKWIJZER_COLORS: Record<string, string> = {

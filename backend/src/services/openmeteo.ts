@@ -14,6 +14,7 @@ interface OpenMeteoHourly {
   cloud_cover?: number[];
   precipitation_probability?: number[];
   uv_index?: number[];
+  sunshine_duration?: number[];
 }
 
 interface OpenMeteoDaily {
@@ -60,6 +61,7 @@ const HOURLY_VARS = [
   'apparent_temperature',
   'cloud_cover',
   'uv_index',
+  'sunshine_duration',
 ].join(',');
 
 export async function fetchMultiModelForecast(

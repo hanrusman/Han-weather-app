@@ -22,6 +22,7 @@ function makeHourlyData(hours: number): HourlyData {
     surface_pressure: Array.from({ length: hours }, () => 1013),
     apparent_temperature: Array.from({ length: hours }, (_, i) => 6 + Math.sin(i / 4) * 4),
     precipitation_probability: Array.from({ length: hours }, () => 40),
+    sunshine_duration: Array.from({ length: hours }, () => 1800),
   };
 }
 

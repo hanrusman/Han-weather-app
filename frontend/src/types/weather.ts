@@ -18,6 +18,7 @@ export interface HourlyData {
   cloud_cover?: number[];
   precipitation_probability?: number[];
   uv_index?: number[];
+  sunshine_duration?: number[];
 }
 
 export interface DailyData {
