@@ -6,6 +6,7 @@ import { DailyForecast } from './components/DailyForecast';
 import { RadarMap } from './components/RadarMap';
 import { Warnings } from './components/Warnings';
 import { WeatherInsights } from './components/WeatherInsights';
+import { ExternalLinks } from './components/ExternalLinks';
 import { LocationPicker } from './components/LocationPicker';
 import { formatDateTime } from './utils/formatting';
 
@@ -116,6 +117,13 @@ export default function App() {
         {warnings && warnings.warnings.length > 0 && (
           <div style={{ marginTop: 'var(--space-lg)' }}>
             <Warnings data={warnings} />
+          </div>
+        )}
+
+        {/* External links */}
+        {selectedLocation && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <ExternalLinks latitude={selectedLocation.latitude} longitude={selectedLocation.longitude} />
           </div>
         )}
 

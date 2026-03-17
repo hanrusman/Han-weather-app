@@ -506,7 +506,7 @@ function uvInsight(
   if (avgUv < 3) return null; // Only show when UV is notable
 
   const advice = formatUvAdvice(avgUv);
-  const text = `☀️ ${advice.label}: ${advice.advice}`;
+  const text = `${advice.label}: ${advice.advice}`;
   const subtext = advice.burnTime
     ? `Verbrandingstijd ~${advice.burnTime} min (huidtype II-III)`
     : undefined;
@@ -528,7 +528,7 @@ function airQualityInsight(
     advice.level === 'matig' ? '🟠' :
     '🔴';
 
-  const text = `${levelIcon} Luchtkwaliteit ${advice.label.toLowerCase()}`;
+  const text = `Luchtkwaliteit ${advice.label.toLowerCase()}`;
   const parts: string[] = [advice.sport];
   if (airQuality.current.pm2_5 > 0) parts.push(`PM2.5: ${Math.round(airQuality.current.pm2_5)}`);
   if (airQuality.current.pm10 > 0) parts.push(`PM10: ${Math.round(airQuality.current.pm10)}`);
@@ -661,36 +661,44 @@ function consensusSummaryInsight(
 export function generateInsights(data: InsightData): WeatherInsight[] {
   const insights: WeatherInsight[] = [];
 
+  // 1. KNMI warnings first (most urgent)
   insights.push(...warningInsights(data.warnings));
 
+  // 2. Current conditions (hero)
   const current = currentInsight(data.forecast, data.currentWeather);
   if (current) insights.push(current);
 
+  // 3. Today's temperature
   const temp = temperatureInsight(data.forecast);
   if (temp) insights.push(temp);
 
+  // 4. Precipitation
   const precip = precipitationInsight(data.forecast);
   if (precip) insights.push(precip);
 
+  // 5. Wind (only shows at ≥5 bft)
   const wind = windInsight(data.forecast);
   if (wind) insights.push(wind);
 
-  const uv = uvInsight(data.currentWeather);
-  if (uv) insights.push(uv);
-
-  const aq = airQualityInsight(data.airQuality);
-  if (aq) insights.push(aq);
-
+  // 6. Week outlook
   const outlook = outlookInsight(data.forecast);
   if (outlook) insights.push(outlook);
 
-  // Stookwijzer near the bottom
-  const stook = stookwijzerInsight(data.stookwijzer);
-  if (stook) insights.push(stook);
-
-  // Consensus summary — very last, wraps up the overview
+  // 7. Model consensus
   const consensus = consensusSummaryInsight(data.forecast, data.currentWeather);
   if (consensus) insights.push(consensus);
+
+  // 8. UV index (only shows at ≥3)
+  const uv = uvInsight(data.currentWeather);
+  if (uv) insights.push(uv);
+
+  // 9. Air quality
+  const aq = airQualityInsight(data.airQuality);
+  if (aq) insights.push(aq);
+
+  // 10. Stookwijzer
+  const stook = stookwijzerInsight(data.stookwijzer);
+  if (stook) insights.push(stook);
 
   return insights;
 }
