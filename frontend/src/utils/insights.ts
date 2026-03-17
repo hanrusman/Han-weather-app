@@ -3,9 +3,11 @@ import type {
   CurrentWeatherResponse,
   StookwijzerResponse,
   WarningsResponse,
+  ModelId,
 } from '../types/weather';
 import { getWeatherInfo } from './weatherCodes';
 import { kmhToBeaufort } from './formatting';
+import { MODEL_LABELS } from './colors';
 
 export interface WeatherInsight {
   icon: string;
@@ -60,6 +62,11 @@ function getModelValues(forecast: MultiModelForecast, field: string, index: numb
 function avg(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((s, v) => s + v, 0) / values.length;
+}
+
+/** Format temperature with 1 decimal, e.g. "13.2°" */
+function t1(v: number): string {
+  return `${v.toFixed(1)}°`;
 }
 
 function mode(values: number[]): number {
@@ -145,9 +152,9 @@ function currentInsight(
   const dominantCode = mode(models.map((m) => m.weatherCode));
   const info = getWeatherInfo(dominantCode);
 
-  let text = `Nu ${Math.round(avgTemp)}° en ${info.description.toLowerCase()}`;
+  let text = `Nu ${t1(avgTemp)} en ${info.description.toLowerCase()}`;
   if (Math.abs(avgTemp - avgFeels) >= 2) {
-    text += `, voelt als ${Math.round(avgFeels)}°`;
+    text += `, voelt als ${t1(avgFeels)}`;
   }
 
   const bft = kmhToBeaufort(avgWind);
@@ -207,16 +214,16 @@ function temperatureInsight(forecast: MultiModelForecast | null): WeatherInsight
   let text: string;
   if (spread >= 2) {
     // Significant model disagreement — show range
-    text = `Vandaag max ${Math.round(Math.min(...todayMaxPerModel))}–${Math.round(Math.max(...todayMaxPerModel))}°`;
+    text = `Vandaag max ${t1(Math.min(...todayMaxPerModel))}–${t1(Math.max(...todayMaxPerModel))}`;
   } else {
-    text = `Vandaag max ${Math.round(todayAvgMax)}°`;
+    text = `Vandaag max ${t1(todayAvgMax)}`;
   }
 
   // Add feels-like if notably different (≥2° from actual)
   if (todayFeelsMaxPerModel.length > 0) {
     const todayAvgFeelsMax = avg(todayFeelsMaxPerModel);
     if (Math.abs(todayAvgMax - todayAvgFeelsMax) >= 2) {
-      text += `, voelt als ${Math.round(todayAvgFeelsMax)}°`;
+      text += `, voelt als ${t1(todayAvgFeelsMax)}`;
     }
   }
 
@@ -461,6 +468,125 @@ function outlookInsight(forecast: MultiModelForecast | null): WeatherInsight | n
   return { icon: '📅', text: parts.join(', '), type: 'outlook' };
 }
 
+function consensusSummaryInsight(
+  forecast: MultiModelForecast | null,
+  currentWeather: CurrentWeatherResponse | null
+): WeatherInsight | null {
+  if (!forecast && !currentWeather) return null;
+
+  const lines: string[] = [];
+  const modelNames = Object.keys(forecast?.models ?? currentWeather?.models ?? {});
+  const totalModels = modelNames.length;
+  if (totalModels < 2) return null;
+
+  // ── Temperature consensus ──
+  if (forecast) {
+    const modelEntries = Object.values(forecast.models);
+    const times = modelEntries[0].time;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const todayMaxPerModel: { name: string; max: number }[] = [];
+    const modelIds = Object.keys(forecast.models);
+    for (let m = 0; m < modelEntries.length; m++) {
+      const model = modelEntries[m];
+      let maxTemp = -Infinity;
+      for (let i = 0; i < times.length; i++) {
+        const t = times[i];
+        const hour = parseInt(t.substring(11, 13), 10);
+        if (hour < 6 || hour > 21) continue;
+        if (t.startsWith(todayStr)) {
+          maxTemp = Math.max(maxTemp, model.temperature_2m[i]);
+        }
+      }
+      if (maxTemp > -Infinity) {
+        const label = MODEL_LABELS[modelIds[m] as ModelId] || modelIds[m];
+        todayMaxPerModel.push({ name: label, max: maxTemp });
+      }
+    }
+
+    if (todayMaxPerModel.length >= 2) {
+      todayMaxPerModel.sort((a, b) => a.max - b.max);
+      const tempSpread = todayMaxPerModel[todayMaxPerModel.length - 1].max - todayMaxPerModel[0].max;
+
+      if (tempSpread < 1.5) {
+        lines.push(`Alle modellen zijn het eens over de temperatuur (verschil ${tempSpread.toFixed(1)}°)`);
+      } else {
+        const coldest = todayMaxPerModel[0];
+        const warmest = todayMaxPerModel[todayMaxPerModel.length - 1];
+        lines.push(
+          `Temperatuur verschilt ${tempSpread.toFixed(1)}° tussen modellen: ` +
+          `${coldest.name} is het koudst (${t1(coldest.max)}), ${warmest.name} het warmst (${t1(warmest.max)})`
+        );
+      }
+    }
+  }
+
+  // ── Precipitation consensus ──
+  if (forecast) {
+    const modelIds = Object.keys(forecast.models);
+    const modelEntries = Object.values(forecast.models);
+    const times = modelEntries[0].time;
+    const currentIdx = findCurrentHourIndex(times);
+    const lookAhead = Math.min(currentIdx + 12, times.length);
+
+    // Count models that predict >40% precip in next 12h
+    const RAIN_THRESHOLD = 40;
+    const rainModels: string[] = [];
+    const dryModels: string[] = [];
+
+    for (let m = 0; m < modelEntries.length; m++) {
+      const model = modelEntries[m];
+      let hasRain = false;
+      if (model.precipitation_probability) {
+        for (let i = currentIdx; i < lookAhead; i++) {
+          if (model.precipitation_probability[i] != null && model.precipitation_probability[i] >= RAIN_THRESHOLD) {
+            hasRain = true;
+            break;
+          }
+        }
+      }
+      const label = MODEL_LABELS[modelIds[m] as ModelId] || modelIds[m];
+      if (hasRain) rainModels.push(label);
+      else dryModels.push(label);
+    }
+
+    if (rainModels.length > 0 && dryModels.length > 0) {
+      // Mixed signals
+      if (rainModels.length >= dryModels.length) {
+        lines.push(
+          `${rainModels.length} van ${totalModels} modellen verwachten neerslag, ` +
+          `${dryModels.join(' en ')} ${dryModels.length === 1 ? 'verwacht' : 'verwachten'} droog weer`
+        );
+      } else {
+        lines.push(
+          `${dryModels.length} van ${totalModels} modellen verwachten droog weer, ` +
+          `${rainModels.join(' en ')} ${rainModels.length === 1 ? 'verwacht' : 'verwachten'} neerslag`
+        );
+      }
+    } else if (rainModels.length === totalModels) {
+      lines.push('Alle modellen verwachten neerslag de komende 12 uur');
+    } else if (dryModels.length === totalModels) {
+      lines.push('Alle modellen verwachten droog weer de komende 12 uur');
+    }
+  }
+
+  if (lines.length === 0) return null;
+
+  // Overall consensus label
+  const tempLine = lines[0] || '';
+  const isHighConsensus = tempLine.includes('Alle modellen zijn het eens') &&
+    (lines.length < 2 || lines[1].includes('Alle modellen'));
+  const icon = isHighConsensus ? '🟢' : '🔶';
+
+  return {
+    icon,
+    text: lines[0],
+    subtext: lines.length > 1 ? lines.slice(1).join('. ') : undefined,
+    type: 'outlook',
+  };
+}
+
 // ─── Main export ───────────────────────────────────────────────
 
 export function generateInsights(data: InsightData): WeatherInsight[] {
@@ -483,9 +609,13 @@ export function generateInsights(data: InsightData): WeatherInsight[] {
   const outlook = outlookInsight(data.forecast);
   if (outlook) insights.push(outlook);
 
-  // Stookwijzer last — practical tip at the bottom
+  // Stookwijzer near the bottom
   const stook = stookwijzerInsight(data.stookwijzer);
   if (stook) insights.push(stook);
+
+  // Consensus summary — very last, wraps up the overview
+  const consensus = consensusSummaryInsight(data.forecast, data.currentWeather);
+  if (consensus) insights.push(consensus);
 
   return insights;
 }
