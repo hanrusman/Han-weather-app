@@ -138,7 +138,7 @@ function warningInsights(warnings: WarningsResponse | null): WeatherInsight[] {
 }
 
 function currentInsight(
-  _forecast: MultiModelForecast | null,
+  forecast: MultiModelForecast | null,
   currentWeather: CurrentWeatherResponse | null
 ): WeatherInsight | null {
   if (!currentWeather) return null;
@@ -172,19 +172,18 @@ function currentInsight(
   parts.push(`💧 ${Math.round(avgHumidity)}%`);
   parts.push(`${Math.round(avgPressure)} hPa`);
 
-  // Sunrise/sunset from daily data
-  if (currentWeather.daily?.sunrise?.length && currentWeather.daily?.sunset?.length) {
-    const rise = currentWeather.daily.sunrise[0];
-    const set = currentWeather.daily.sunset[0];
+  // Sunrise/sunset from daily data (try currentWeather first, fall back to forecast)
+  const daily = currentWeather.daily ?? forecast?.daily;
+  if (daily?.sunrise?.length && daily?.sunset?.length) {
+    const rise = daily.sunrise[0];
+    const set = daily.sunset[0];
     const riseTime = rise.includes('T') ? rise.substring(11, 16) : rise;
     const setTime = set.includes('T') ? set.substring(11, 16) : set;
     parts.push(`☀️ ${riseTime}–${setTime}`);
   }
 
-  // UV if relevant (≥1)
-  if (avgUv >= 1) {
-    parts.push(`UV ${Math.round(avgUv)}`);
-  }
+  // Always show UV index
+  parts.push(`UV ${Math.round(avgUv)}`);
 
   const subtext = parts.join(' · ') + consensusNote;
 
