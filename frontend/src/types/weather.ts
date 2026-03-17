@@ -10,12 +10,20 @@ export interface HourlyData {
   temperature_2m: number[];
   precipitation: number[];
   wind_speed_10m: number[];
+  wind_direction_10m?: number[];
   weather_code: number[];
   relative_humidity_2m?: number[];
   surface_pressure?: number[];
   apparent_temperature?: number[];
   cloud_cover?: number[];
   precipitation_probability?: number[];
+  uv_index?: number[];
+}
+
+export interface DailyData {
+  time: string[];
+  sunrise: string[];
+  sunset: string[];
 }
 
 export interface MultiModelForecast {
@@ -23,6 +31,7 @@ export interface MultiModelForecast {
   longitude: number;
   timezone: string;
   models: Record<string, HourlyData>;
+  daily?: DailyData;
   fetchedAt: string;
 }
 
@@ -31,13 +40,33 @@ export interface CurrentModelData {
   humidity: number;
   pressure: number;
   windSpeed: number;
+  windDirection: number;
   apparentTemperature: number;
   weatherCode: number;
   cloudCover: number;
+  uvIndex: number;
 }
 
 export interface CurrentWeatherResponse {
   models: Record<string, CurrentModelData>;
+  daily?: DailyData;
+  fetchedAt: string;
+}
+
+export interface AirQualityResponse {
+  current: {
+    europeanAqi: number;
+    pm2_5: number;
+    pm10: number;
+    ozone: number;
+    nitrogenDioxide: number;
+  };
+  hourly: {
+    time: string[];
+    european_aqi: number[];
+    pm2_5: number[];
+    pm10: number[];
+  };
   fetchedAt: string;
 }
 

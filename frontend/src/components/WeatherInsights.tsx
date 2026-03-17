@@ -3,6 +3,7 @@ import type {
   CurrentWeatherResponse,
   StookwijzerResponse,
   WarningsResponse,
+  AirQualityResponse,
 } from '../types/weather';
 import { generateInsights, type WeatherInsight } from '../utils/insights';
 
@@ -11,10 +12,11 @@ interface WeatherInsightsProps {
   currentWeather: CurrentWeatherResponse | null;
   stookwijzer: StookwijzerResponse | null;
   warnings: WarningsResponse | null;
+  airQuality: AirQualityResponse | null;
 }
 
-export function WeatherInsights({ forecast, currentWeather, stookwijzer, warnings }: WeatherInsightsProps) {
-  const insights = generateInsights({ forecast, currentWeather, stookwijzer, warnings });
+export function WeatherInsights({ forecast, currentWeather, stookwijzer, warnings, airQuality }: WeatherInsightsProps) {
+  const insights = generateInsights({ forecast, currentWeather, stookwijzer, warnings, airQuality });
 
   if (insights.length === 0) return null;
 

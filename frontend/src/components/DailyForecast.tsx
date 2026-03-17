@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MultiModelForecast, ModelId } from '../types/weather';
 import { getWeatherInfo } from '../utils/weatherCodes';
-import { formatTemp, formatPrecip } from '../utils/formatting';
+import { formatTemp, formatPrecip, degreesToCompass } from '../utils/formatting';
 
 interface DailyForecastProps {
   forecast: MultiModelForecast;
@@ -18,6 +18,9 @@ interface DayData {
   totalPrecip: number;
   weatherCode: number;
   consensusSpread: number;
+  windDirSin: number;
+  windDirCos: number;
+  windDirCount: number;
 }
 
 export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
@@ -45,6 +48,9 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
         totalPrecip: 0,
         weatherCode: 0,
         consensusSpread: 0,
+        windDirSin: 0,
+        windDirCos: 0,
+        windDirCount: 0,
       });
     }
 
@@ -58,6 +64,13 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
       }
       if (hourly.precipitation[i] !== undefined) {
         maxPrecip = Math.max(maxPrecip, hourly.precipitation[i]);
+      }
+      // Accumulate wind direction using circular mean (sin/cos)
+      if (hourly.wind_direction_10m?.[i] != null) {
+        const rad = (hourly.wind_direction_10m[i] * Math.PI) / 180;
+        day.windDirSin += Math.sin(rad);
+        day.windDirCos += Math.cos(rad);
+        day.windDirCount++;
       }
     }
 
@@ -120,6 +133,12 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
           const avgLeftPct = ((day.minTemp - globalMin) / tempRange) * 100;
           const avgWidthPct = ((day.maxTemp - day.minTemp) / tempRange) * 100;
 
+          // Circular mean for wind direction
+          const windDeg = day.windDirCount > 0
+            ? ((Math.atan2(day.windDirSin / day.windDirCount, day.windDirCos / day.windDirCount) * 180) / Math.PI + 360) % 360
+            : null;
+          const windCompass = windDeg !== null ? degreesToCompass(windDeg) : '';
+
           return (
             <div
               key={day.date}
@@ -134,6 +153,24 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
                 {day.dayLabel}
               </span>
               <span style={{ width: 24, textAlign: 'center', flexShrink: 0 }}>{weather.icon}</span>
+              {/* Wind direction arrow */}
+              {windDeg !== null && (
+                <span
+                  style={{
+                    width: 18,
+                    textAlign: 'center',
+                    flexShrink: 0,
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--color-text-tertiary)',
+                    display: 'inline-block',
+                    transform: `rotate(${windDeg + 180}deg)`,
+                    lineHeight: 1,
+                  }}
+                  title={`Wind ${windCompass}`}
+                >
+                  ↑
+                </span>
+              )}
               {/* Consensus dot */}
               <span
                 style={{

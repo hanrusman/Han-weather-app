@@ -1,4 +1,4 @@
-import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer } from './hooks/useWeatherData';
+import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer, useAirQuality } from './hooks/useWeatherData';
 import { useLocations } from './hooks/useLocations';
 import { useModelToggle } from './hooks/useModelToggle';
 import { MultiModelChart } from './components/MultiModelChart';
@@ -27,6 +27,7 @@ export default function App() {
   const { data: currentWeather, loading: currentLoading } = useCurrentWeather(lat, lon);
   const warnings = useWarnings();
   const stookwijzer = useStookwijzer(lat, lon);
+  const airQuality = useAirQuality(lat, lon);
   const { enabledModels, toggle, isEnabled, allModels } = useModelToggle();
 
   if (forecastLoading && currentLoading) {
@@ -80,6 +81,7 @@ export default function App() {
           currentWeather={currentWeather}
           stookwijzer={stookwijzer}
           warnings={warnings}
+          airQuality={airQuality}
         />
 
         {/* Context row: radar + 7-day forecast */}

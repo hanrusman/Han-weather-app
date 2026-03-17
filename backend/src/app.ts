@@ -7,6 +7,7 @@ import { currentRouter } from './routes/current';
 import { radarRouter } from './routes/radar';
 import { warningsRouter } from './routes/warnings';
 import { stookwijzerRouter } from './routes/stookwijzer';
+import { airqualityRouter } from './routes/airquality';
 import { checkAlerts } from './services/alerts';
 
 export const app = express();
@@ -20,6 +21,7 @@ app.use('/api/current', currentRouter);
 app.use('/api/radar', radarRouter);
 app.use('/api/warnings', warningsRouter);
 app.use('/api/stookwijzer', stookwijzerRouter);
+app.use('/api/airquality', airqualityRouter);
 
 // Config endpoint
 app.get('/api/config', (_req, res) => {

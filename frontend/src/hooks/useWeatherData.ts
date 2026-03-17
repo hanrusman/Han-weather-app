@@ -4,6 +4,7 @@ import type {
   CurrentWeatherResponse,
   WarningsResponse,
   StookwijzerResponse,
+  AirQualityResponse,
   AppConfig,
 } from '../types/weather';
 
@@ -107,6 +108,28 @@ export function useStookwijzer(lat?: number, lon?: number) {
     try {
       const url = buildUrl('/api/stookwijzer', { lat, lon });
       const result = await fetchJson<StookwijzerResponse>(url);
+      setData(result);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [lat, lon]);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  return data;
+}
+
+export function useAirQuality(lat?: number, lon?: number) {
+  const [data, setData] = useState<AirQualityResponse | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const url = buildUrl('/api/airquality', { lat, lon });
+      const result = await fetchJson<AirQualityResponse>(url);
       setData(result);
     } catch (err) {
       console.error(err);

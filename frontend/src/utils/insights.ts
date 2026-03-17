@@ -3,17 +3,18 @@ import type {
   CurrentWeatherResponse,
   StookwijzerResponse,
   WarningsResponse,
+  AirQualityResponse,
   ModelId,
 } from '../types/weather';
 import { getWeatherInfo } from './weatherCodes';
-import { kmhToBeaufort } from './formatting';
+import { kmhToBeaufort, degreesToCompass, formatUvAdvice, formatAirQuality } from './formatting';
 import { MODEL_LABELS } from './colors';
 
 export interface WeatherInsight {
   icon: string;
   text: string;
   subtext?: string;
-  type: 'warning' | 'current' | 'rain' | 'temperature' | 'wind' | 'stookwijzer' | 'outlook';
+  type: 'warning' | 'current' | 'rain' | 'temperature' | 'wind' | 'uv' | 'airquality' | 'stookwijzer' | 'outlook';
 }
 
 export interface InsightData {
@@ -21,6 +22,7 @@ export interface InsightData {
   currentWeather: CurrentWeatherResponse | null;
   stookwijzer: StookwijzerResponse | null;
   warnings: WarningsResponse | null;
+  airQuality: AirQualityResponse | null;
 }
 
 const DUTCH_DAYS = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
@@ -149,6 +151,8 @@ function currentInsight(
   const avgHumidity = avg(models.map((m) => m.humidity));
   const avgPressure = avg(models.map((m) => m.pressure));
   const avgWind = avg(models.map((m) => m.windSpeed));
+  const avgWindDir = avg(models.map((m) => m.windDirection));
+  const avgUv = avg(models.map((m) => m.uvIndex));
   const dominantCode = mode(models.map((m) => m.weatherCode));
   const info = getWeatherInfo(dominantCode);
 
@@ -157,10 +161,32 @@ function currentInsight(
     text += `, voelt als ${t1(avgFeels)}`;
   }
 
+  const compass = degreesToCompass(avgWindDir);
   const bft = kmhToBeaufort(avgWind);
   const currentConsensus = consensusLevel(models.map((m) => m.temperature), 2, 4);
   const consensusNote = currentConsensus !== 'high' ? ` · ${CONSENSUS_LABELS[currentConsensus]}` : '';
-  const subtext = `${bft} bft (${Math.round(avgWind)} km/u) · ${Math.round(avgHumidity)}% · ${Math.round(avgPressure)} hPa${consensusNote}`;
+
+  // Build rich subtext: wind + humidity + pressure + sunrise/sunset + UV
+  const parts: string[] = [];
+  parts.push(`${compass} ${bft} bft (${Math.round(avgWind)} km/u)`);
+  parts.push(`💧 ${Math.round(avgHumidity)}%`);
+  parts.push(`${Math.round(avgPressure)} hPa`);
+
+  // Sunrise/sunset from daily data
+  if (currentWeather.daily?.sunrise?.length && currentWeather.daily?.sunset?.length) {
+    const rise = currentWeather.daily.sunrise[0];
+    const set = currentWeather.daily.sunset[0];
+    const riseTime = rise.includes('T') ? rise.substring(11, 16) : rise;
+    const setTime = set.includes('T') ? set.substring(11, 16) : set;
+    parts.push(`☀️ ${riseTime}–${setTime}`);
+  }
+
+  // UV if relevant (≥1)
+  if (avgUv >= 1) {
+    parts.push(`UV ${Math.round(avgUv)}`);
+  }
+
+  const subtext = parts.join(' · ') + consensusNote;
 
   return { icon: info.icon, text, subtext, type: 'current' };
 }
@@ -468,6 +494,49 @@ function outlookInsight(forecast: MultiModelForecast | null): WeatherInsight | n
   return { icon: '📅', text: parts.join(', '), type: 'outlook' };
 }
 
+function uvInsight(
+  currentWeather: CurrentWeatherResponse | null
+): WeatherInsight | null {
+  if (!currentWeather) return null;
+
+  const models = Object.values(currentWeather.models);
+  if (models.length === 0) return null;
+
+  const avgUv = avg(models.map((m) => m.uvIndex));
+  if (avgUv < 3) return null; // Only show when UV is notable
+
+  const advice = formatUvAdvice(avgUv);
+  const text = `☀️ ${advice.label}: ${advice.advice}`;
+  const subtext = advice.burnTime
+    ? `Verbrandingstijd ~${advice.burnTime} min (huidtype II-III)`
+    : undefined;
+
+  return { icon: '☀️', text, subtext, type: 'uv' };
+}
+
+function airQualityInsight(
+  airQuality: AirQualityResponse | null
+): WeatherInsight | null {
+  if (!airQuality) return null;
+
+  const aqi = airQuality.current.europeanAqi;
+  const advice = formatAirQuality(aqi);
+
+  const levelIcon =
+    advice.level === 'goed' ? '🟢' :
+    advice.level === 'redelijk' ? '🟡' :
+    advice.level === 'matig' ? '🟠' :
+    '🔴';
+
+  const text = `${levelIcon} Luchtkwaliteit ${advice.label.toLowerCase()}`;
+  const parts: string[] = [advice.sport];
+  if (airQuality.current.pm2_5 > 0) parts.push(`PM2.5: ${Math.round(airQuality.current.pm2_5)}`);
+  if (airQuality.current.pm10 > 0) parts.push(`PM10: ${Math.round(airQuality.current.pm10)}`);
+  const subtext = parts.join(' · ');
+
+  return { icon: levelIcon, text, subtext, type: 'airquality' };
+}
+
 function consensusSummaryInsight(
   forecast: MultiModelForecast | null,
   currentWeather: CurrentWeatherResponse | null
@@ -605,6 +674,12 @@ export function generateInsights(data: InsightData): WeatherInsight[] {
 
   const wind = windInsight(data.forecast);
   if (wind) insights.push(wind);
+
+  const uv = uvInsight(data.currentWeather);
+  if (uv) insights.push(uv);
+
+  const aq = airQualityInsight(data.airQuality);
+  if (aq) insights.push(aq);
 
   const outlook = outlookInsight(data.forecast);
   if (outlook) insights.push(outlook);

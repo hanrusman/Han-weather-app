@@ -16,6 +16,7 @@ export const config = {
     warningsTtl: 10 * 60 * 1000,      // 10 min
     stookwijzerTtl: 30 * 60 * 1000,   // 30 min
     radarTtl: 5 * 60 * 1000,          //  5 min
+    airQualityTtl: 30 * 60 * 1000,   // 30 min
   },
 
   models: [
