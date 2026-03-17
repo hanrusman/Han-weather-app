@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { MultiModelForecast, ModelId } from '../types/weather';
 import { getWeatherInfo } from '../utils/weatherCodes';
 import { formatTemp, formatPrecip } from '../utils/formatting';
@@ -16,9 +17,12 @@ interface DayData {
   spreadMax: number;
   totalPrecip: number;
   weatherCode: number;
+  consensusSpread: number;
 }
 
 export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
+  const [showDays, setShowDays] = useState<7 | 14>(7);
+
   const models = Object.entries(forecast.models).filter(([id]) =>
     enabledModels.has(id as ModelId)
   );
@@ -40,6 +44,7 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
         spreadMax: -Infinity,
         totalPrecip: 0,
         weatherCode: 0,
+        consensusSpread: 0,
       });
     }
 
@@ -62,6 +67,12 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
       day.maxTemp = Math.max(day.maxTemp, avg);
       day.spreadMin = Math.min(day.spreadMin, ...allTemps);
       day.spreadMax = Math.max(day.spreadMax, ...allTemps);
+
+      // Track max hourly spread for consensus
+      if (allTemps.length > 1) {
+        const hourSpread = Math.max(...allTemps) - Math.min(...allTemps);
+        day.consensusSpread = Math.max(day.consensusSpread, hourSpread);
+      }
     }
 
     day.totalPrecip += maxPrecip;
@@ -75,14 +86,32 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
     }
   });
 
-  const days = Array.from(dayMap.values()).slice(0, 7);
+  const days = Array.from(dayMap.values()).slice(0, showDays);
   const globalMin = Math.min(...days.map((d) => d.spreadMin));
   const globalMax = Math.max(...days.map((d) => d.spreadMax));
   const tempRange = globalMax - globalMin || 1;
 
   return (
     <div className="card">
-      <h2 className="section-title" style={{ marginBottom: 'var(--space-lg)' }}>7-daagse voorspelling</h2>
+      <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-lg)' }}>
+        <h2 className="section-title">
+          {showDays === 7 ? '7-daagse' : '14-daagse'} voorspelling
+        </h2>
+        <div className="tab-group">
+          <button
+            onClick={() => setShowDays(7)}
+            className={`tab ${showDays === 7 ? 'tab-active' : ''}`}
+          >
+            7d
+          </button>
+          <button
+            onClick={() => setShowDays(14)}
+            className={`tab ${showDays === 14 ? 'tab-active' : ''}`}
+          >
+            14d
+          </button>
+        </div>
+      </div>
       <div className="flex flex-col" style={{ gap: 'var(--space-sm)' }}>
         {days.map((day) => {
           const weather = getWeatherInfo(day.weatherCode);
@@ -105,6 +134,23 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
                 {day.dayLabel}
               </span>
               <span style={{ width: 24, textAlign: 'center', flexShrink: 0 }}>{weather.icon}</span>
+              {/* Consensus dot */}
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor:
+                    day.consensusSpread < 2
+                      ? 'var(--color-success)'
+                      : day.consensusSpread < 4
+                        ? 'var(--color-warning)'
+                        : 'var(--color-danger)',
+                  flexShrink: 0,
+                  opacity: 0.7,
+                }}
+                title={`Modelspreiding: ${day.consensusSpread.toFixed(1)}°`}
+              />
               <span style={{ width: 36, textAlign: 'right', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
                 {formatTemp(day.spreadMin)}
               </span>

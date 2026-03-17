@@ -96,7 +96,7 @@ export interface GeocodingResult {
 }
 
 export type WeatherVariable = 'temperature' | 'feelsLike' | 'precipitation' | 'wind';
-export type TimeRange = '1d' | '3d' | '7d';
+export type TimeRange = '1d' | '3d' | '7d' | '14d';
 
 export interface ChartDataPoint {
   time: string;

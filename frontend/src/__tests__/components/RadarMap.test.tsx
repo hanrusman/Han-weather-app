@@ -3,13 +3,13 @@ import { render } from '@testing-library/react';
 import { RadarMap } from '../../components/RadarMap';
 
 describe('RadarMap', () => {
-  it('renders iframe with correct Buienradar URL', () => {
+  it('renders radar image with Buienradar URL', () => {
     const { container } = render(<RadarMap latitude={52.3738} longitude={4.8910} />);
-    const iframe = container.querySelector('iframe');
-    expect(iframe).toBeTruthy();
-    expect(iframe!.src).toContain('gadgets.buienradar.nl');
-    expect(iframe!.src).toContain('lat=52.3738');
-    expect(iframe!.src).toContain('lng=4.8910');
+    const img = container.querySelector('img');
+    expect(img).toBeTruthy();
+    expect(img!.src).toContain('image.buienradar.nl');
+    expect(img!.src).toContain('RadarMapRainNL');
+    expect(img!.alt).toContain('regenradar');
   });
 
   it('renders section title', () => {
@@ -20,5 +20,12 @@ describe('RadarMap', () => {
   it('renders source attribution', () => {
     const { container } = render(<RadarMap latitude={52.37} longitude={4.89} />);
     expect(container.textContent).toContain('Buienradar / KNMI');
+  });
+
+  it('renders refresh button', () => {
+    const { container } = render(<RadarMap latitude={52.37} longitude={4.89} />);
+    const refreshBtn = container.querySelector('button');
+    expect(refreshBtn).toBeTruthy();
+    expect(refreshBtn!.title).toBe('Ververs radar');
   });
 });

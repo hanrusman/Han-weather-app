@@ -2,11 +2,10 @@ import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijz
 import { useLocations } from './hooks/useLocations';
 import { useModelToggle } from './hooks/useModelToggle';
 import { MultiModelChart } from './components/MultiModelChart';
-import { CurrentWeather } from './components/CurrentWeather';
 import { DailyForecast } from './components/DailyForecast';
 import { RadarMap } from './components/RadarMap';
 import { Warnings } from './components/Warnings';
-import { StookwijzerBadge } from './components/StookwijzerBadge';
+import { WeatherInsights } from './components/WeatherInsights';
 import { LocationPicker } from './components/LocationPicker';
 import { formatDateTime } from './utils/formatting';
 
@@ -24,7 +23,7 @@ export default function App() {
   const lat = selectedLocation?.latitude;
   const lon = selectedLocation?.longitude;
 
-  const { data: forecast, loading: forecastLoading, error: forecastError } = useForecast(7, lat, lon);
+  const { data: forecast, loading: forecastLoading, error: forecastError } = useForecast(14, lat, lon);
   const { data: currentWeather, loading: currentLoading } = useCurrentWeather(lat, lon);
   const warnings = useWarnings();
   const stookwijzer = useStookwijzer(lat, lon);
@@ -65,13 +64,6 @@ export default function App() {
               onRemove={removeLocation}
               onGps={updateGpsLocation}
             />
-            {stookwijzer && <StookwijzerBadge data={stookwijzer} />}
-            {warnings && warnings.warnings.length > 0 && (
-              <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', color: 'var(--color-warning)', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-warning)', display: 'inline-block' }} />
-                KNMI
-              </span>
-            )}
             {forecast && (
               <span className="hidden sm:inline" style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>
                 {formatDateTime(forecast.fetchedAt)}
@@ -86,39 +78,48 @@ export default function App() {
           </div>
         )}
 
-        {/* Main grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-lg)' }}>
-          {/* Left — charts */}
-          <div className="lg:col-span-2 flex flex-col" style={{ gap: 'var(--space-lg)' }}>
-            {forecast && (
-              <MultiModelChart
-                forecast={forecast}
-                enabledModels={enabledModels}
-                allModels={allModels}
-                isEnabled={isEnabled}
-                onToggle={toggle}
-              />
-            )}
-            {forecast && (
-              <DailyForecast forecast={forecast} enabledModels={enabledModels} />
-            )}
-          </div>
+        {/* Insights — hero section */}
+        <WeatherInsights
+          forecast={forecast}
+          currentWeather={currentWeather}
+          stookwijzer={stookwijzer}
+          warnings={warnings}
+        />
 
-          {/* Right — glanceable cards */}
-          <div className="flex flex-col" style={{ gap: 'var(--space-lg)' }}>
-            {currentWeather && (
-              <CurrentWeather
-                data={currentWeather}
-                locationName={selectedLocation?.name || config?.locationName || 'Amsterdam'}
-              />
-            )}
+        {/* Context row: radar + 7-day forecast */}
+        <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+          <div>
             <RadarMap
               latitude={selectedLocation?.latitude ?? config?.latitude ?? 52.37}
               longitude={selectedLocation?.longitude ?? config?.longitude ?? 4.89}
             />
-            {warnings && <Warnings data={warnings} />}
+          </div>
+          <div className="lg:col-span-2">
+            {forecast && (
+              <DailyForecast forecast={forecast} enabledModels={enabledModels} />
+            )}
           </div>
         </div>
+
+        {/* Deep dive: model charts */}
+        {forecast && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <MultiModelChart
+              forecast={forecast}
+              enabledModels={enabledModels}
+              allModels={allModels}
+              isEnabled={isEnabled}
+              onToggle={toggle}
+            />
+          </div>
+        )}
+
+        {/* KNMI warnings detail */}
+        {warnings && warnings.warnings.length > 0 && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <Warnings data={warnings} />
+          </div>
+        )}
 
         {/* Footer */}
         <footer className="text-center" style={{ marginTop: 'var(--space-2xl)', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>

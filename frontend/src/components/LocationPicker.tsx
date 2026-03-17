@@ -95,24 +95,26 @@ export function LocationPicker({
         className="flex items-center"
         style={{
           gap: 'var(--space-sm)',
-          padding: '6px 12px',
-          borderRadius: 'var(--radius-md)',
-          background: 'var(--color-surface-1)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-primary)',
-          fontSize: 'var(--text-sm)',
+          padding: '10px 16px',
+          borderRadius: 'var(--radius-lg)',
+          background: 'var(--color-accent)',
+          border: 'none',
+          color: '#fff',
+          fontSize: 'var(--text-base)',
+          fontWeight: 600,
           cursor: 'pointer',
           transition: 'all var(--transition-fast)',
+          boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
         }}
       >
-        <svg className="w-4 h-4" style={{ color: 'var(--color-text-tertiary)' }} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
         </svg>
-        <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedLocation?.name || 'Kies locatie'}
         </span>
-        <svg className="w-3 h-3" style={{ color: 'var(--color-text-tertiary)' }} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg className="w-4 h-4" style={{ opacity: 0.7 }} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
         </svg>
       </button>
@@ -121,17 +123,33 @@ export function LocationPicker({
       {open && (
         <div
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
+            position: 'fixed',
+            top: 'auto',
+            right: 'var(--space-md)',
+            left: 'var(--space-md)',
             marginTop: 'var(--space-sm)',
-            width: 288,
+            maxWidth: 320,
             background: 'var(--color-surface-2)',
             border: '1px solid var(--color-border-emphasis)',
             borderRadius: 'var(--radius-lg)',
             boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
             zIndex: 50,
             overflow: 'hidden',
+          }}
+          ref={(el) => {
+            if (el && dropdownRef.current) {
+              const btnRect = dropdownRef.current.getBoundingClientRect();
+              el.style.position = 'absolute';
+              el.style.left = 'auto';
+              el.style.right = '0';
+              el.style.top = `${btnRect.height + 8}px`;
+              // Ensure dropdown doesn't go off-screen left
+              const rect = el.getBoundingClientRect();
+              if (rect.left < 8) {
+                el.style.right = 'auto';
+                el.style.left = `${-btnRect.left + 8}px`;
+              }
+            }
           }}
         >
           {/* Search input */}

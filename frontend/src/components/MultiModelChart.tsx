@@ -40,6 +40,7 @@ const TIME_RANGES: { key: TimeRange; label: string; hours: number }[] = [
   { key: '1d', label: '24u', hours: 24 },
   { key: '3d', label: '3d', hours: 72 },
   { key: '7d', label: '7d', hours: 168 },
+  { key: '14d', label: '14d', hours: 336 },
 ];
 
 function formatXTick(time: string, range: TimeRange): string {
@@ -48,6 +49,9 @@ function formatXTick(time: string, range: TimeRange): string {
     return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
   }
   const hour = date.getHours();
+  if (range === '14d') {
+    return hour === 0 ? date.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric' }) : '';
+  }
   if (hour === 0 || hour === 12) {
     if (hour === 0) {
       return date.toLocaleDateString('nl-NL', { weekday: 'short' });
@@ -70,7 +74,7 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
 
     const [, firstModel] = models[0];
     const times = firstModel.time.slice(0, rangeConfig.hours);
-    const step = timeRange === '7d' ? 3 : 1;
+    const step = timeRange === '14d' ? 6 : timeRange === '7d' ? 3 : 1;
 
     const data: ChartDataPoint[] = [];
     for (let i = 0; i < times.length; i += step) {
@@ -97,7 +101,7 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
     return data;
   }, [forecast, variable, timeRange, enabledModels, rangeConfig.hours, varConfig.dataKey]);
 
-  const tickInterval = timeRange === '1d' ? 2 : timeRange === '3d' ? 5 : 1;
+  const tickInterval = timeRange === '1d' ? 2 : timeRange === '3d' ? 5 : 1; // 7d and 14d use 1
 
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color: string }>; label?: string }) => {
     if (!active || !payload || !label) return null;
@@ -207,7 +211,7 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
                   dataKey={model}
                   fill={MODEL_COLORS[model]}
                   opacity={0.75}
-                  barSize={timeRange === '7d' ? 3 : timeRange === '3d' ? 4 : 8}
+                  barSize={timeRange === '14d' ? 2 : timeRange === '7d' ? 3 : timeRange === '3d' ? 4 : 8}
                 />
               ))}
             </ComposedChart>
