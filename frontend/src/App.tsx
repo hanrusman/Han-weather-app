@@ -1,16 +1,19 @@
+import { lazy, Suspense } from 'react';
 import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer, useAirQuality } from './hooks/useWeatherData';
 import { useLocations } from './hooks/useLocations';
 import { useModelToggle } from './hooks/useModelToggle';
 import { useTheme } from './hooks/useTheme';
-import { MultiModelChart } from './components/MultiModelChart';
 import { DailyForecast } from './components/DailyForecast';
-import { RadarMap } from './components/RadarMap';
 import { Warnings } from './components/Warnings';
 import { WeatherInsights } from './components/WeatherInsights';
 import { ExternalLinks } from './components/ExternalLinks';
 import { LocationPicker } from './components/LocationPicker';
 import { ThemeToggle } from './components/ThemeToggle';
 import { formatDateTime } from './utils/formatting';
+
+// Lazy-load heavy components (Recharts ~400KB, RadarMap loads external image)
+const MultiModelChart = lazy(() => import('./components/MultiModelChart'));
+const RadarMap = lazy(() => import('./components/RadarMap'));
 
 export default function App() {
   const config = useAppConfig();
@@ -98,17 +101,19 @@ export default function App() {
           </div>
         )}
 
-        {/* Deep dive: model charts */}
+        {/* Deep dive: model charts (lazy-loaded — Recharts is ~400KB) */}
         {forecast && (
-          <div style={{ marginTop: 'var(--space-lg)' }}>
-            <MultiModelChart
-              forecast={forecast}
-              enabledModels={enabledModels}
-              allModels={allModels}
-              isEnabled={isEnabled}
-              onToggle={toggle}
-            />
-          </div>
+          <Suspense fallback={<div className="card" style={{ marginTop: 'var(--space-lg)', minHeight: 320 }} />}>
+            <div style={{ marginTop: 'var(--space-lg)' }}>
+              <MultiModelChart
+                forecast={forecast}
+                enabledModels={enabledModels}
+                allModels={allModels}
+                isEnabled={isEnabled}
+                onToggle={toggle}
+              />
+            </div>
+          </Suspense>
         )}
 
         {/* KNMI warnings detail */}
@@ -118,16 +123,18 @@ export default function App() {
           </div>
         )}
 
-        {/* Bottom row: radar + external links */}
-        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
-          <RadarMap
-            latitude={selectedLocation?.latitude ?? config?.latitude ?? 52.37}
-            longitude={selectedLocation?.longitude ?? config?.longitude ?? 4.89}
-          />
-          {selectedLocation && (
-            <ExternalLinks latitude={selectedLocation.latitude} longitude={selectedLocation.longitude} />
-          )}
-        </div>
+        {/* Bottom row: radar + external links (lazy-loaded) */}
+        <Suspense fallback={null}>
+          <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+            <RadarMap
+              latitude={selectedLocation?.latitude ?? config?.latitude ?? 52.37}
+              longitude={selectedLocation?.longitude ?? config?.longitude ?? 4.89}
+            />
+            {selectedLocation && (
+              <ExternalLinks latitude={selectedLocation.latitude} longitude={selectedLocation.longitude} />
+            )}
+          </div>
+        </Suspense>
 
         {/* Footer */}
         <footer className="text-center" style={{ marginTop: 'var(--space-2xl)', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>

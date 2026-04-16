@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { RadarMap } from '../../components/RadarMap';
+import RadarMap from '../../components/RadarMap';
 
 describe('RadarMap', () => {
   it('renders radar image with Buienradar URL', () => {

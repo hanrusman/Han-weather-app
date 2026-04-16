@@ -8,7 +8,7 @@ interface RadarMapProps {
 const RADAR_URL = 'https://image.buienradar.nl/2.0/image/animation/RadarMapRainNL';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-export function RadarMap({ latitude: _lat, longitude: _lon }: RadarMapProps) {
+export default function RadarMap({ latitude: _lat, longitude: _lon }: RadarMapProps) {
   const [cacheBust, setCacheBust] = useState(Date.now());
 
   useEffect(() => {
@@ -47,6 +47,8 @@ export function RadarMap({ latitude: _lat, longitude: _lon }: RadarMapProps) {
         <img
           src={src}
           alt="Buienradar regenradar Nederland"
+          loading="lazy"
+          decoding="async"
           style={{
             display: 'block',
             width: '100%',

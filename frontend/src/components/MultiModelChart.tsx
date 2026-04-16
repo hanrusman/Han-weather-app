@@ -71,7 +71,7 @@ function formatXTick(time: string, range: TimeRange): string {
   return '';
 }
 
-export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled, onToggle }: MultiModelChartProps) {
+export default function MultiModelChart({ forecast, enabledModels, allModels, isEnabled, onToggle }: MultiModelChartProps) {
   const [variable, setVariable] = useState<WeatherVariable>('temperature');
   const [timeRange, setTimeRange] = useState<TimeRange>('3d');
 

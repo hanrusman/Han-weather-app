@@ -96,6 +96,9 @@ export function LocationPicker({
       {/* Inline heading trigger — subtle, part of the header */}
       <button
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Locatie: ${displayName}. Klik om te wijzigen`}
         className="flex items-center"
         style={{
           gap: '6px',
@@ -142,7 +145,7 @@ export function LocationPicker({
             background: 'var(--color-surface-2)',
             border: '1px solid var(--color-border-emphasis)',
             borderRadius: 'var(--radius-lg)',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+            boxShadow: '0 16px 48px var(--color-tooltip-shadow)',
             zIndex: 50,
             overflow: 'hidden',
           }}
@@ -164,6 +167,7 @@ export function LocationPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Zoek locatie..."
+              aria-label="Zoek locatie"
               autoFocus
               style={{
                 width: '100%',
@@ -279,6 +283,7 @@ export function LocationPicker({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemove(loc.id); }}
+                    aria-label={`${loc.name} verwijderen`}
                     title="Verwijderen"
                     style={{
                       color: 'var(--color-text-tertiary)',

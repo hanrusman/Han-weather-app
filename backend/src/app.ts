@@ -1,6 +1,8 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import path from 'path';
+import expressStaticGzip from 'express-static-gzip';
 import { config } from './config';
 import { forecastRouter } from './routes/forecast';
 import { currentRouter } from './routes/current';
@@ -12,6 +14,8 @@ import { checkAlerts } from './services/alerts';
 
 export const app = express();
 
+// Compress API responses (static files handled by express-static-gzip)
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -34,10 +38,20 @@ app.get('/api/config', (_req, res) => {
   });
 });
 
-// Serve frontend in production
+// Serve frontend in production — pre-compressed Brotli/Gzip with immutable cache
 const frontendDist = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
+app.use(expressStaticGzip(frontendDist, {
+  enableBrotli: true,
+  orderPreference: ['br', 'gzip'],
+  serveStatic: {
+    maxAge: '1y',
+    immutable: true,
+    index: false, // don't serve index.html with immutable cache
+  },
+}));
+// index.html: no-cache so updates are always fetched
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
