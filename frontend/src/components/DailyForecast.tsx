@@ -247,7 +247,7 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
               <span style={{ width: 36, color: 'var(--color-text-bright)', fontWeight: 500, flexShrink: 0 }}>
                 {formatTemp(day.spreadMax)}
               </span>
-              <span style={{ width: 48, textAlign: 'right', color: day.totalPrecip > 0.1 ? '#60a5fa' : 'transparent', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+              <span style={{ width: 48, textAlign: 'right', color: day.totalPrecip > 0.1 ? 'var(--color-precip)' : 'transparent', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
                 {day.totalPrecip > 0.1 ? formatPrecip(day.totalPrecip) : ''}
               </span>
               {/* Sunshine hours */}

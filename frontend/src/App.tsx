@@ -1,6 +1,7 @@
 import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer, useAirQuality } from './hooks/useWeatherData';
 import { useLocations } from './hooks/useLocations';
 import { useModelToggle } from './hooks/useModelToggle';
+import { useTheme } from './hooks/useTheme';
 import { MultiModelChart } from './components/MultiModelChart';
 import { DailyForecast } from './components/DailyForecast';
 import { RadarMap } from './components/RadarMap';
@@ -8,6 +9,7 @@ import { Warnings } from './components/Warnings';
 import { WeatherInsights } from './components/WeatherInsights';
 import { ExternalLinks } from './components/ExternalLinks';
 import { LocationPicker } from './components/LocationPicker';
+import { ThemeToggle } from './components/ThemeToggle';
 import { formatDateTime } from './utils/formatting';
 
 export default function App() {
@@ -30,6 +32,7 @@ export default function App() {
   const stookwijzer = useStookwijzer(lat, lon);
   const airQuality = useAirQuality(lat, lon);
   const { enabledModels, toggle, isEnabled, allModels } = useModelToggle();
+  const { theme, toggleTheme } = useTheme();
 
   if (forecastLoading && currentLoading) {
     return (
@@ -63,15 +66,18 @@ export default function App() {
             )}
           </div>
 
-          {forecast && (
-            <span className="hidden sm:inline" style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>
-              {formatDateTime(forecast.fetchedAt)}
-            </span>
-          )}
+          <div className="flex items-center" style={{ gap: 'var(--space-sm)' }}>
+            {forecast && (
+              <span className="hidden sm:inline" style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>
+                {formatDateTime(forecast.fetchedAt)}
+              </span>
+            )}
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
         </header>
 
         {forecastError && (
-          <div className="card" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(239, 68, 68, 0.06)', borderColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
+          <div className="card" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--color-danger)' }}>
             {forecastError}
           </div>
         )}

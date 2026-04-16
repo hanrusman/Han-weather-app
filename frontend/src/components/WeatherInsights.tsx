@@ -37,7 +37,7 @@ function InsightRow({ insight, isHero }: { insight: WeatherInsight; isHero: bool
       style={{
         ...(isWarning
           ? {
-              background: 'rgba(245, 158, 11, 0.06)',
+              background: 'var(--color-warning-bg)',
               borderRadius: 'var(--radius-md)',
               padding: 'var(--space-sm) var(--space-md)',
               margin: '0 calc(-1 * var(--space-sm))',

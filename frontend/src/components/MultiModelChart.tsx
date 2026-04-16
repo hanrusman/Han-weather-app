@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   LineChart,
   Line,
@@ -14,6 +14,16 @@ import type { ModelId, MultiModelForecast, WeatherVariable, TimeRange, ChartData
 import { MODEL_COLORS, MODEL_LABELS } from '../utils/colors';
 import { formatTemp, formatWind } from '../utils/formatting';
 import { ModelLegend } from './ModelLegend';
+
+// Subscribe to theme changes on <html data-theme="...">
+function subscribeTheme(cb: () => void) {
+  const observer = new MutationObserver(cb);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => observer.disconnect();
+}
+function getThemeSnapshot() {
+  return document.documentElement.getAttribute('data-theme') || 'dark';
+}
 
 interface MultiModelChartProps {
   forecast: MultiModelForecast;
@@ -115,7 +125,7 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
     });
 
     return (
-      <div style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-emphasis)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+      <div style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-emphasis)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', boxShadow: `0 8px 32px ${tooltipShadow}` }}>
         <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-sm)' }}>{timeStr}</p>
         {payload
           .filter((p) => !p.dataKey.startsWith('_'))
@@ -136,10 +146,14 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
 
   const yDomain = variable === 'precipitation' ? [0, 100] : undefined;
 
-  // Chart grid/axis colors from design tokens
-  const gridColor = 'rgba(255,255,255,0.04)';
-  const axisColor = 'rgba(255,255,255,0.08)';
-  const tickColor = 'rgba(255,255,255,0.32)';
+  // Theme-reactive chart colors (Recharts needs raw values, not CSS vars)
+  const currentTheme = useSyncExternalStore(subscribeTheme, getThemeSnapshot);
+  const isLight = currentTheme === 'light';
+  const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
+  const axisColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
+  const tickColor = isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.32)';
+  const avgColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)';
+  const tooltipShadow = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.5)';
 
   return (
     <div className="card">
@@ -246,7 +260,7 @@ export function MultiModelChart({ forecast, enabledModels, allModels, isEnabled,
               <Line
                 type="monotone"
                 dataKey="_avg"
-                stroke="rgba(255,255,255,0.2)"
+                stroke={avgColor}
                 strokeWidth={1}
                 strokeDasharray="4 4"
                 dot={false}
