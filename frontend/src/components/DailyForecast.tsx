@@ -68,19 +68,19 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
     let sunshineSec = 0;
 
     for (const [, hourly] of models) {
-      if (hourly.temperature_2m[i] !== undefined) {
+      if (hourly.temperature_2m[i] != null) {
         allTemps.push(hourly.temperature_2m[i]);
       }
-      if (hourly.precipitation[i] !== undefined) {
+      if (hourly.precipitation[i] != null) {
         maxPrecip = Math.max(maxPrecip, hourly.precipitation[i]);
       }
-      if (hourly.wind_speed_10m[i] !== undefined) {
+      if (hourly.wind_speed_10m[i] != null) {
         allWinds.push(hourly.wind_speed_10m[i]);
       }
-      if (hourly.apparent_temperature?.[i] !== undefined) {
+      if (hourly.apparent_temperature?.[i] != null) {
         allFeels.push(hourly.apparent_temperature[i]);
       }
-      if (hourly.sunshine_duration?.[i] !== undefined) {
+      if (hourly.sunshine_duration?.[i] != null) {
         sunshineSec += hourly.sunshine_duration[i];
       }
       // Accumulate wind direction using circular mean (sin/cos)
@@ -121,7 +121,7 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
 
     const hour = new Date(time).getHours();
     if (hour === 12) {
-      const codes = models.map(([, h]) => h.weather_code[i]).filter((c) => c !== undefined);
+      const codes = models.map(([, h]) => h.weather_code[i]).filter((c) => c != null);
       if (codes.length > 0) {
         day.weatherCode = codes.sort((a, b) => b - a)[0];
       }
@@ -171,9 +171,8 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
           return (
             <div
               key={day.date}
-              className="flex items-center"
+              className="flex items-center daily-row"
               style={{
-                gap: 'var(--space-sm)',
                 padding: 'var(--space-sm) 0',
                 fontSize: 'var(--text-sm)',
               }}
@@ -220,7 +219,7 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
               <span style={{ width: 36, textAlign: 'right', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
                 {formatTemp(day.spreadMin)}
               </span>
-              <div className="flex-1 relative mx-1" style={{ height: 6, background: 'var(--color-surface-0)', borderRadius: 3 }}>
+              <div className="daily-bar flex-1 relative mx-1" style={{ height: 6, background: 'var(--color-surface-0)', borderRadius: 3, minWidth: 0 }}>
                 {/* Model spread */}
                 <div
                   className="absolute"
@@ -251,15 +250,15 @@ export function DailyForecast({ forecast, enabledModels }: DailyForecastProps) {
                 {day.totalPrecip > 0.1 ? formatPrecip(day.totalPrecip) : ''}
               </span>
               {/* Sunshine hours */}
-              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+              <span className="daily-extra" style={{ width: 28, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
                 {day.totalSunshine > 0 ? `☀${Math.round(day.totalSunshine / 3600)}u` : ''}
               </span>
               {/* Wind in Beaufort */}
-              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
-                {`${kmhToBeaufort(day.maxWindSpeed)} bft`}
+              <span className="daily-extra" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+                {`${kmhToBeaufort(day.maxWindSpeed)}bft`}
               </span>
               {/* Feels-like max */}
-              <span className="hidden sm:inline" style={{ width: 32, textAlign: 'right', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
+              <span className="daily-extra" style={{ width: 28, textAlign: 'right', color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)', flexShrink: 0 }}>
                 {day.maxFeelsLike > -Infinity ? formatTemp(day.maxFeelsLike) : ''}
               </span>
             </div>
