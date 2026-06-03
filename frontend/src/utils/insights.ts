@@ -369,7 +369,7 @@ function windInsight(forecast: MultiModelForecast | null): WeatherInsight | null
   for (const model of modelEntries) {
     let modelMax = 0;
     for (let i = currentIdx; i < lookAhead; i++) {
-      if (model.wind_speed_10m[i] !== undefined) {
+      if (model.wind_speed_10m[i] != null) {
         modelMax = Math.max(modelMax, model.wind_speed_10m[i]);
       }
     }

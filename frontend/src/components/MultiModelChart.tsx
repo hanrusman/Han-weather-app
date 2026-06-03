@@ -94,7 +94,7 @@ export default function MultiModelChart({ forecast, enabledModels, allModels, is
 
       for (const [modelId, hourly] of models) {
         const dataArray = hourly[varConfig.dataKey as keyof typeof hourly] as number[] | undefined;
-        if (dataArray && dataArray[i] !== undefined) {
+        if (dataArray && dataArray[i] != null) {
           point[modelId] = dataArray[i];
           if (enabledModels.has(modelId as ModelId)) {
             values.push(dataArray[i]);
@@ -164,9 +164,9 @@ export default function MultiModelChart({ forecast, enabledModels, allModels, is
           <span style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)' }}>({varConfig.unit})</span>
         </div>
 
-        <div className="flex items-center" style={{ gap: 'var(--space-sm)' }}>
+        <div className="flex flex-wrap items-center chart-tab-row" style={{ gap: 'var(--space-sm)' }}>
           {/* Variable tabs */}
-          <div className="tab-group">
+          <div className="tab-group tab-group-scroll">
             {(Object.keys(VARIABLE_CONFIG) as WeatherVariable[]).map((v) => (
               <button
                 key={v}
@@ -179,7 +179,7 @@ export default function MultiModelChart({ forecast, enabledModels, allModels, is
           </div>
 
           {/* Time range tabs */}
-          <div className="tab-group">
+          <div className="tab-group tab-group-scroll">
             {TIME_RANGES.map((r) => (
               <button
                 key={r.key}

@@ -217,7 +217,36 @@ body {
     border: none;
     background: transparent;
     color: var(--color-text-tertiary);
+    white-space: nowrap;
   }
+
+  /* Tighter tabs on narrow viewports so chart controls fit on one row */
+  @media (max-width: 640px) {
+    .tab { padding: 5px 10px; font-size: var(--text-xs); }
+  }
+
+  /* Tab row inside the chart card: allow wrap + horizontal scroll fallback */
+  .chart-tab-row {
+    max-width: 100%;
+  }
+
+  /* Daily forecast row — tight on mobile so all columns fit */
+  .daily-row { gap: var(--space-sm); }
+  @media (max-width: 480px) {
+    .daily-row { gap: 4px; font-size: var(--text-xs); }
+    .daily-row .daily-extra { font-size: 10px; }
+    /* Drop visual bar on small screens — text values stay */
+    .daily-row .daily-bar { display: none; }
+    /* Push the column block to the right so labels align */
+    .daily-row .daily-bar + span { margin-left: auto; }
+  }
+
+  .tab-group-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-group-scroll::-webkit-scrollbar { display: none; }
 
   .tab:hover { color: var(--color-text-secondary); }
 
