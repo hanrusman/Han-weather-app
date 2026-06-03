@@ -1,6 +1,23 @@
 import type { WarningsResponse } from '../types/weather';
 import { WARNING_COLORS } from '../utils/colors';
 
+function fmt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('nl-NL', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatWindow(from?: string, until?: string): string {
+  if (from && until) return `${fmt(from)} – ${fmt(until)}`;
+  return fmt(from || until || '');
+}
+
 interface WarningsProps {
   data: WarningsResponse;
 }
@@ -35,11 +52,18 @@ export function Warnings({ data }: WarningsProps) {
             />
             <div>
               <p style={{ color: 'var(--color-text-primary)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
-                {warning.area}
+                {warning.type && warning.type.toLowerCase() !== 'weer'
+                  ? `${warning.area} · ${warning.type}`
+                  : warning.area}
               </p>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>
                 {warning.description}
               </p>
+              {(warning.validFrom || warning.validUntil) && (
+                <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-xs)', marginTop: '4px' }}>
+                  {formatWindow(warning.validFrom, warning.validUntil)}
+                </p>
+              )}
             </div>
           </div>
         ))}

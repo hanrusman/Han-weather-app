@@ -4,6 +4,8 @@ import type {
   StookwijzerResponse,
   WarningsResponse,
   AirQualityResponse,
+  ObservationsResponse,
+  ClimateResponse,
   ModelId,
 } from '../types/weather';
 import { getWeatherInfo } from './weatherCodes';
@@ -14,7 +16,7 @@ export interface WeatherInsight {
   icon: string;
   text: string;
   subtext?: string;
-  type: 'warning' | 'current' | 'rain' | 'temperature' | 'wind' | 'uv' | 'airquality' | 'stookwijzer' | 'outlook';
+  type: 'warning' | 'current' | 'rain' | 'temperature' | 'wind' | 'uv' | 'airquality' | 'stookwijzer' | 'outlook' | 'observation' | 'climate';
 }
 
 export interface InsightData {
@@ -23,6 +25,8 @@ export interface InsightData {
   stookwijzer: StookwijzerResponse | null;
   warnings: WarningsResponse | null;
   airQuality: AirQualityResponse | null;
+  observations?: ObservationsResponse | null;
+  climate?: ClimateResponse | null;
 }
 
 const DUTCH_DAYS = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
@@ -126,15 +130,154 @@ const CATEGORY_LABELS: Record<WeatherCategory, string> = {
 
 // ─── Insight generators ────────────────────────────────────────
 
+function formatWarningWindow(from?: string, until?: string): string | undefined {
+  if (!from && !until) return undefined;
+  const fmt = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString('nl-NL', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+  if (from && until) return `${fmt(from)} – ${fmt(until)}`;
+  return fmt(from || until!);
+}
+
 function warningInsights(warnings: WarningsResponse | null): WeatherInsight[] {
   if (!warnings?.warnings.length) return [];
   const levelOrder = { red: 0, orange: 1, yellow: 2, green: 3 };
   const sorted = [...warnings.warnings].sort((a, b) => levelOrder[a.level] - levelOrder[b.level]);
-  return sorted.map((w) => ({
-    icon: w.level === 'red' ? '🔴' : w.level === 'orange' ? '🟠' : '⚠️',
-    text: `KNMI: ${w.description}`,
-    type: 'warning' as const,
-  }));
+  return sorted.map((w) => {
+    const window = formatWarningWindow(w.validFrom, w.validUntil);
+    const head = w.type && w.type.toLowerCase() !== 'weer'
+      ? `KNMI ${w.level}: ${w.type}`
+      : `KNMI: ${w.description}`;
+    return {
+      icon: w.level === 'red' ? '🔴' : w.level === 'orange' ? '🟠' : '⚠️',
+      text: head,
+      subtext: [w.description !== head ? w.description : null, window].filter(Boolean).join(' · ') || undefined,
+      type: 'warning' as const,
+    };
+  });
+}
+
+/**
+ * Compare model average vs. nearest KNMI station measurement. Only surfaces
+ * when the gap is ≥ 1.5° (otherwise it's just noise).
+ */
+function observationInsight(
+  forecast: MultiModelForecast | null,
+  currentWeather: CurrentWeatherResponse | null,
+  observations: ObservationsResponse | null | undefined,
+): WeatherInsight | null {
+  if (!observations || observations.source !== 'ok') return null;
+  const obs = observations.values;
+  const station = observations.station;
+  if (!station || obs.temperature == null) return null;
+
+  // Model average (current weather has per-model temp)
+  let modelAvg: number | null = null;
+  if (currentWeather) {
+    const temps = Object.values(currentWeather.models).map((m) => m.temperature);
+    if (temps.length) modelAvg = temps.reduce((s, v) => s + v, 0) / temps.length;
+  } else if (forecast) {
+    const firstModel = Object.values(forecast.models)[0];
+    if (firstModel) {
+      const idx = findCurrentHourIndex(firstModel.time);
+      modelAvg = firstModel.temperature_2m[idx] ?? null;
+    }
+  }
+
+  const measured = obs.temperature;
+  const diff = modelAvg != null ? measured - modelAvg : null;
+
+  let text = `${station.name}: ${t1(measured)} gemeten`;
+  if (diff != null && Math.abs(diff) >= 0.5) {
+    text += diff > 0 ? ` (${t1(Math.abs(diff))} warmer dan modellen)` : ` (${t1(Math.abs(diff))} kouder dan modellen)`;
+  }
+
+  const subParts: string[] = [];
+  if (station.distanceKm != null) subParts.push(`${Math.round(station.distanceKm)} km`);
+  if (obs.windSpeed != null) {
+    const kmh = obs.windSpeed * 3.6;
+    subParts.push(`wind ${kmhToBeaufort(kmh)} bft`);
+  }
+  if (obs.visibility != null) {
+    const km = obs.visibility / 1000;
+    subParts.push(`zicht ${km < 10 ? km.toFixed(1) : Math.round(km)} km`);
+  }
+  if (obs.sunshineDuration != null && obs.sunshineDuration > 0) {
+    subParts.push(`${obs.sunshineDuration.toFixed(0)} min zon`);
+  }
+  return {
+    icon: '📡',
+    text,
+    subtext: subParts.length ? subParts.join(' · ') : undefined,
+    type: 'observation',
+  };
+}
+
+/**
+ * Compare today's forecast/observation against the 30-year climate normal.
+ * Surfaces when |Δ| ≥ 2° or when precipitation is unusually high/low.
+ */
+function climateInsight(
+  forecast: MultiModelForecast | null,
+  observations: ObservationsResponse | null | undefined,
+  climate: ClimateResponse | null | undefined,
+): WeatherInsight | null {
+  if (!climate?.normal || !forecast) return null;
+  const normal = climate.normal;
+
+  // Today's max from the forecast (avg across models)
+  const today = new Date();
+  const todayDate = today.toISOString().slice(0, 10);
+  const tempsToday: number[] = [];
+  for (const m of Object.values(forecast.models)) {
+    for (let i = 0; i < m.time.length; i++) {
+      if (m.time[i].startsWith(todayDate) && m.temperature_2m[i] != null) {
+        tempsToday.push(m.temperature_2m[i]);
+      }
+    }
+  }
+  if (!tempsToday.length || normal.meanTmax == null) return null;
+  const todayMax = Math.max(...tempsToday);
+  const delta = todayMax - normal.meanTmax;
+
+  // Use the measured value if we have it, otherwise the forecast value
+  const observedT = observations?.values.temperature;
+  const liveText = observedT != null
+    ? `${t1(observedT)} nu, max ${t1(todayMax)} verwacht`
+    : `max ${t1(todayMax)} verwacht`;
+
+  let qualifier: string;
+  if (delta >= 5) qualifier = `flink boven normaal (+${t1(delta)})`;
+  else if (delta >= 2) qualifier = `boven normaal (+${t1(delta)})`;
+  else if (delta <= -5) qualifier = `flink onder normaal (${t1(delta)})`;
+  else if (delta <= -2) qualifier = `onder normaal (${t1(delta)})`;
+  else qualifier = `rond normaal (${delta >= 0 ? '+' : ''}${t1(delta)})`;
+
+  const text = `${liveText} — ${qualifier}`;
+  const subParts: string[] = [];
+  subParts.push(`norm ${t1(normal.meanTmax)} (${climate.referenceWindow})`);
+  if (normal.recordTmax != null) subParts.push(`record ${t1(normal.recordTmax)}`);
+  if (climate.stationName) subParts.push(climate.stationName);
+
+  // Only show climate insight when meaningfully off normal
+  if (Math.abs(delta) < 2 && (normal.recordTmax == null || todayMax < normal.recordTmax - 2)) {
+    return null;
+  }
+
+  return {
+    icon: delta >= 0 ? '🌡️' : '❄️',
+    text,
+    subtext: subParts.join(' · '),
+    type: 'climate',
+  };
 }
 
 function currentInsight(
@@ -666,6 +809,14 @@ export function generateInsights(data: InsightData): WeatherInsight[] {
   // 2. Current conditions (hero)
   const current = currentInsight(data.forecast, data.currentWeather);
   if (current) insights.push(current);
+
+  // 2a. KNMI station measurement (only when present and informative)
+  const obs = observationInsight(data.forecast, data.currentWeather, data.observations);
+  if (obs) insights.push(obs);
+
+  // 2b. Climate normal anomaly (only when notably above/below normal)
+  const clim = climateInsight(data.forecast, data.observations, data.climate);
+  if (clim) insights.push(clim);
 
   // 3. Today's temperature
   const temp = temperatureInsight(data.forecast);

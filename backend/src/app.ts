@@ -6,10 +6,12 @@ import expressStaticGzip from 'express-static-gzip';
 import { config } from './config';
 import { forecastRouter } from './routes/forecast';
 import { currentRouter } from './routes/current';
-import { radarRouter } from './routes/radar';
+import { radarRouter, radarImageHandler } from './routes/radar';
 import { warningsRouter } from './routes/warnings';
 import { stookwijzerRouter } from './routes/stookwijzer';
 import { airqualityRouter } from './routes/airquality';
+import { observationsRouter } from './routes/observations';
+import { climateRouter } from './routes/climate';
 import { checkAlerts } from './services/alerts';
 
 export const app = express();
@@ -23,9 +25,12 @@ app.use(express.json());
 app.use('/api/forecast', forecastRouter);
 app.use('/api/current', currentRouter);
 app.use('/api/radar', radarRouter);
+app.get('/api/radar.png', radarImageHandler);
 app.use('/api/warnings', warningsRouter);
 app.use('/api/stookwijzer', stookwijzerRouter);
 app.use('/api/airquality', airqualityRouter);
+app.use('/api/observations', observationsRouter);
+app.use('/api/climate', climateRouter);
 
 // Config endpoint
 app.get('/api/config', (_req, res) => {

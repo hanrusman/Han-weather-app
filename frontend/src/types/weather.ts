@@ -71,21 +71,74 @@ export interface AirQualityResponse {
   fetchedAt: string;
 }
 
+export interface KnmiWarning {
+  type: string;
+  level: 'green' | 'yellow' | 'orange' | 'red';
+  description: string;
+  area: string;
+  validFrom?: string;
+  validUntil?: string;
+}
+
 export interface WarningsResponse {
-  warnings: {
-    type: string;
-    level: 'green' | 'yellow' | 'orange' | 'red';
-    description: string;
-    area: string;
-  }[];
+  warnings: KnmiWarning[];
   imageUrl: string;
   fetchedAt: string;
+  source?: 'ok' | 'no-key' | 'unauthorized' | 'error' | 'no-data';
 }
 
 export interface RadarResponse {
   imageUrl: string;
   animationUrl: string;
+  source?: 'wms' | 'fallback';
   fetchedAt: string;
+}
+
+export interface ObservationStation {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distanceKm?: number;
+}
+
+export interface ObservationsResponse {
+  station: ObservationStation | null;
+  values: {
+    temperature?: number;
+    dewPoint?: number;
+    humidity?: number;
+    windSpeed?: number;       // m/s
+    windGust?: number;        // m/s
+    windDirection?: number;
+    pressure?: number;
+    visibility?: number;      // m
+    sunshineDuration?: number;
+    globalRadiation?: number;
+    cloudCover?: number;
+    precipitation?: number;
+  };
+  observedAt: string | null;
+  fetchedAt: string;
+  source: 'ok' | 'no-key' | 'unauthorized' | 'error' | 'no-data';
+}
+
+export interface ClimateResponse {
+  stationId: string | null;
+  stationName: string | null;
+  monthDay: string;
+  referenceWindow: string;
+  normal: {
+    meanT?: number;
+    meanTmax?: number;
+    meanTmin?: number;
+    meanPrecip?: number;
+    recordTmax?: number;
+    recordTmin?: number;
+    samples: number;
+  } | null;
+  fetchedAt: string;
+  source: 'ok' | 'no-key' | 'unauthorized' | 'error' | 'no-data';
 }
 
 export interface StookwijzerResponse {
