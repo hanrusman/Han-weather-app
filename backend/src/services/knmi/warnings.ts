@@ -211,7 +211,7 @@ export async function fetchWarnings(): Promise<WarningsResponse> {
 
   // 1) List files
   const list = await knmiGetJson<FilesListResponse>(
-    'https://api.dataplatform.knmi.nl/open-data/v1/datasets/weather_warnings/versions/1.0/files?maxKeys=10&orderBy=created&sorting=desc',
+    'https://api.dataplatform.knmi.nl/open-data/v1/datasets/waarschuwingen_nederland_48h/versions/1.0/files?maxKeys=10&orderBy=created&sorting=desc',
     config.knmiApiKey,
     { logLabel: 'warnings:list' },
   );
@@ -229,13 +229,13 @@ export async function fetchWarnings(): Promise<WarningsResponse> {
     return baseResp;
   }
 
-  // 2) Resolve latest file URL
-  // Some KNMI endpoints sort lexicographically — also probe a couple of files
-  // since a "current" file may sometimes be empty/stale.
+  // 2) Resolve latest file URL — prefer .xml (we parse XML); skip .txt
   let xml: string | null = null;
-  for (const file of list.data.files.slice(0, 3)) {
+  const xmlFiles = list.data.files.filter((f) => f.filename.endsWith('.xml'));
+  const candidates = (xmlFiles.length ? xmlFiles : list.data.files).slice(0, 3);
+  for (const file of candidates) {
     const fileUrl = await knmiGetJson<FileUrlResponse>(
-      `https://api.dataplatform.knmi.nl/open-data/v1/datasets/weather_warnings/versions/1.0/files/${encodeURIComponent(file.filename)}/url`,
+      `https://api.dataplatform.knmi.nl/open-data/v1/datasets/waarschuwingen_nederland_48h/versions/1.0/files/${encodeURIComponent(file.filename)}/url`,
       config.knmiApiKey,
       { logLabel: 'warnings:fileUrl' },
     );
