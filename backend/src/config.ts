@@ -5,6 +5,9 @@ export const config = {
   locationName: process.env.LOCATION_NAME || 'Amsterdam',
   province: process.env.PROVINCE || 'Noord-Holland',
   knmiApiKey: process.env.KNMI_API_KEY || '',
+  // Optional per-API key overrides (fall back to KNMI_API_KEY when unset)
+  knmiEdrApiKey: process.env.KNMI_EDR_API_KEY || process.env.KNMI_API_KEY || '',
+  knmiWmsApiKey: process.env.KNMI_WMS_API_KEY || process.env.KNMI_API_KEY || '',
   haWebhookUrl: process.env.HA_WEBHOOK_URL || '',
 
   alerts: {
@@ -17,6 +20,9 @@ export const config = {
     stookwijzerTtl: 30 * 60 * 1000,   // 30 min
     radarTtl: 5 * 60 * 1000,          //  5 min
     airQualityTtl: 30 * 60 * 1000,   // 30 min
+    observationsTtl: 5 * 60 * 1000,   //  5 min (10-min station obs)
+    climateTtl: 24 * 60 * 60 * 1000,  // 24 h (historic normals)
+    stationsTtl: 7 * 24 * 60 * 60 * 1000, // 7 d (station catalog)
   },
 
   models: [

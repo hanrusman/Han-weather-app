@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer, useAirQuality } from './hooks/useWeatherData';
+import { useAppConfig, useForecast, useCurrentWeather, useWarnings, useStookwijzer, useAirQuality, useObservations, useClimate } from './hooks/useWeatherData';
 import { useLocations } from './hooks/useLocations';
 import { useModelToggle } from './hooks/useModelToggle';
 import { useTheme } from './hooks/useTheme';
@@ -34,6 +34,8 @@ export default function App() {
   const warnings = useWarnings();
   const stookwijzer = useStookwijzer(lat, lon);
   const airQuality = useAirQuality(lat, lon);
+  const observations = useObservations(lat, lon);
+  const climate = useClimate(lat, lon);
   const { enabledModels, toggle, isEnabled, allModels } = useModelToggle();
   const { theme, toggleTheme } = useTheme();
 
@@ -92,6 +94,8 @@ export default function App() {
           stookwijzer={stookwijzer}
           warnings={warnings}
           airQuality={airQuality}
+          observations={observations}
+          climate={climate}
         />
 
         {/* Daily forecast — full width */}

@@ -9,9 +9,10 @@ describe('Warnings', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders warning area and description', () => {
+  it('renders warning area, type, and description', () => {
     render(<Warnings data={mockWarnings} />);
-    expect(screen.getByText('Noord-Holland')).toBeInTheDocument();
+    // Area + type are now rendered together (e.g. "Noord-Holland · wind")
+    expect(screen.getByText(/Noord-Holland/)).toBeInTheDocument();
     expect(screen.getByText('Krachtige wind verwacht')).toBeInTheDocument();
   });
 

@@ -5,6 +5,8 @@ import type {
   WarningsResponse,
   StookwijzerResponse,
   AirQualityResponse,
+  ObservationsResponse,
+  ClimateResponse,
   AppConfig,
 } from '../types/weather';
 
@@ -139,6 +141,51 @@ export function useAirQuality(lat?: number, lon?: number) {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  return data;
+}
+
+export function useObservations(lat?: number, lon?: number) {
+  const [data, setData] = useState<ObservationsResponse | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const url = buildUrl('/api/observations', { lat, lon });
+      const result = await fetchJson<ObservationsResponse>(url);
+      setData(result);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [lat, lon]);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  return data;
+}
+
+export function useClimate(lat?: number, lon?: number) {
+  const [data, setData] = useState<ClimateResponse | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const url = buildUrl('/api/climate', { lat, lon });
+      const result = await fetchJson<ClimateResponse>(url);
+      setData(result);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [lat, lon]);
+
+  useEffect(() => {
+    fetchData();
+    // Climate normals are stable — refresh once per day-ish is fine
+    const interval = setInterval(fetchData, 6 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
