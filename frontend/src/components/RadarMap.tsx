@@ -10,15 +10,33 @@ const DATASET = 'radar_forecast_2.0';
 const LAYER = 'precipitation_nowcast';
 const STYLE = 'rainrate-blue-to-purple/shaded';
 
-// View ≈ 4° lat × 6° lon — covers all of NL plus margin around any user location
-const HALF_LAT = 2.0;
-const HALF_LON = 3.0;
+/**
+ * Zoom levels expressed as half-extents around the user's lat/lon.
+ * At NL latitude (52°), 1° lat ≈ 111 km and 1° lon ≈ 68 km.
+ */
+const ZOOM_LEVELS: { halfLat: number; halfLon: number; label: string }[] = [
+  { halfLat: 0.30, halfLon: 0.50, label: 'stad' },     // ~33 × 34 km
+  { halfLat: 0.70, halfLon: 1.00, label: 'regio' },    // ~78 × 68 km
+  { halfLat: 1.20, halfLon: 1.80, label: 'gebied' },   // ~133 × 123 km
+  { halfLat: 2.00, halfLon: 3.00, label: 'land' },     // ~222 × 204 km — full NL
+];
+const DEFAULT_ZOOM = 1; // "regio" — tighter than full NL by default
+const ZOOM_STORAGE_KEY = 'nl-weather-radar-zoom';
 
 const HISTORY_MIN = 30;   // past frames
 const FORECAST_MIN = 90;  // forecast frames
 const STEP_MIN = 5;
 const FRAME_MS = 250;     // playback speed
 const REFRESH_INTERVAL = 5 * 60 * 1000;
+
+function readStoredZoom(): number {
+  if (typeof window === 'undefined') return DEFAULT_ZOOM;
+  const raw = window.localStorage.getItem(ZOOM_STORAGE_KEY);
+  if (raw == null) return DEFAULT_ZOOM;
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed >= ZOOM_LEVELS.length) return DEFAULT_ZOOM;
+  return parsed;
+}
 
 /** Floor a Date to the nearest 5-minute boundary in UTC. */
 function floorToFiveMin(d: Date): Date {
@@ -83,11 +101,18 @@ export default function RadarMap({ latitude, longitude }: RadarMapProps) {
   const [frameIdx, setFrameIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [zoomIdx, setZoomIdx] = useState<number>(() => readStoredZoom());
   const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Persist zoom across reloads
+  useEffect(() => {
+    try { window.localStorage.setItem(ZOOM_STORAGE_KEY, String(zoomIdx)); } catch { /* ignore */ }
+  }, [zoomIdx]);
+
+  const zoom = ZOOM_LEVELS[zoomIdx];
   const bbox = useMemo<[number, number, number, number]>(
-    () => [latitude - HALF_LAT, longitude - HALF_LON, latitude + HALF_LAT, longitude + HALF_LON],
-    [latitude, longitude],
+    () => [latitude - zoom.halfLat, longitude - zoom.halfLon, latitude + zoom.halfLat, longitude + zoom.halfLon],
+    [latitude, longitude, zoom.halfLat, zoom.halfLon],
   );
   const basemapUrl = useMemo(() => buildBasemapUrl(bbox, 600, 600), [bbox]);
 
@@ -147,6 +172,15 @@ export default function RadarMap({ latitude, longitude }: RadarMapProps) {
     setPlaying(false);
   }, [nowIndex]);
 
+  const handleZoomIn = useCallback(
+    () => setZoomIdx((z) => Math.max(0, z - 1)),
+    [],
+  );
+  const handleZoomOut = useCallback(
+    () => setZoomIdx((z) => Math.min(ZOOM_LEVELS.length - 1, z + 1)),
+    [],
+  );
+
   const current = frames[frameIdx];
   if (!current) return null;
 
@@ -173,6 +207,64 @@ export default function RadarMap({ latitude, longitude }: RadarMapProps) {
           </p>
         </div>
         <div className="flex items-center" style={{ gap: 'var(--space-sm)' }}>
+          <div
+            className="flex items-center"
+            role="group"
+            aria-label="Zoom"
+            style={{
+              background: 'var(--color-surface-0)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              onClick={handleZoomIn}
+              disabled={zoomIdx === 0}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: zoomIdx === 0 ? 'default' : 'pointer',
+                color: zoomIdx === 0 ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+                fontSize: 'var(--text-sm)',
+                padding: '4px 10px',
+                lineHeight: 1,
+              }}
+              title="Inzoomen"
+              aria-label="Inzoomen"
+            >
+              +
+            </button>
+            <span
+              aria-hidden="true"
+              style={{
+                color: 'var(--color-text-tertiary)',
+                fontSize: 'var(--text-xs)',
+                padding: '0 6px',
+                minWidth: 40,
+                textAlign: 'center',
+              }}
+            >
+              {zoom.label}
+            </span>
+            <button
+              onClick={handleZoomOut}
+              disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: zoomIdx === ZOOM_LEVELS.length - 1 ? 'default' : 'pointer',
+                color: zoomIdx === ZOOM_LEVELS.length - 1 ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+                fontSize: 'var(--text-sm)',
+                padding: '4px 10px',
+                lineHeight: 1,
+              }}
+              title="Uitzoomen"
+              aria-label="Uitzoomen"
+            >
+              −
+            </button>
+          </div>
           <button
             onClick={handleTogglePlay}
             style={{
