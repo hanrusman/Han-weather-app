@@ -52,15 +52,25 @@ export interface ClimateResponse {
 
 interface LocationsGeoJson {
   features?: {
+    /** Full WIGOS id, e.g. "0-20000-0-06240" — required by /locations/{id} */
     id?: string;
-    properties?: { name?: string; id?: string };
+    properties?: { name?: string; wmoId?: string };
     geometry?: { coordinates?: [number, number] };
   }[];
 }
 
-interface CoverageJson {
+interface Coverage {
   domain?: { axes?: { t?: { values?: string[] } } };
   ranges?: Record<string, { values?: (number | null)[] }>;
+}
+interface CoverageJson extends Coverage {
+  /** Present on CoverageCollection responses */
+  coverages?: Coverage[];
+}
+
+function unwrapCoverage(payload: CoverageJson): Coverage {
+  if (payload.coverages?.length) return payload.coverages[0];
+  return payload;
 }
 
 async function fetchClimateStations(): Promise<{ id: string; name: string; latitude: number; longitude: number }[]> {
@@ -77,7 +87,8 @@ async function fetchClimateStations(): Promise<{ id: string; name: string; latit
 
   const stations = r.data.features
     .map((f) => {
-      const id = String(f.properties?.id ?? f.id ?? '').trim();
+      // KNMI uses WIGOS station identifiers (e.g. "0-20000-0-06240")
+      const id = String(f.id ?? '').trim();
       const coords = f.geometry?.coordinates;
       if (!id || !coords) return null;
       return {
@@ -98,7 +109,8 @@ function pad2(n: number): string {
 }
 
 /** Pick out values from the CoverageJSON whose time matches the given month-day. */
-function valuesForMonthDay(coverage: CoverageJson, paramCode: string, monthDay: string): number[] {
+function valuesForMonthDay(payload: CoverageJson, paramCode: string, monthDay: string): number[] {
+  const coverage = unwrapCoverage(payload);
   const times = coverage.domain?.axes?.t?.values;
   const values = coverage.ranges?.[paramCode]?.values;
   if (!Array.isArray(times) || !Array.isArray(values)) return [];
@@ -181,24 +193,12 @@ export async function fetchClimateNormal(lat: number, lon: number): Promise<Clim
   const tn = valuesForMonthDay(r.data, 'TN', monthDay);
   const rh = valuesForMonthDay(r.data, 'RH', monthDay);
 
-  // Tg/Tx/Tn in KNMI validated dataset are in 0.1°C — divide by 10 if they look like ints.
-  // Heuristic: if mean abs > 100 we're in 0.1° units.
-  function maybeScale(values: number[]): number[] {
-    if (!values.length) return values;
-    const meanAbs = values.reduce((s, v) => s + Math.abs(v), 0) / values.length;
-    return meanAbs > 100 ? values.map((v) => v / 10) : values;
-  }
-  const tgS = maybeScale(tg);
-  const txS = maybeScale(tx);
-  const tnS = maybeScale(tn);
-  // Rd (precipitation, 0.1 mm) — divide by 10 always
-  const rhS = rh.map((v) => v / 10);
-
-  const samples = Math.max(tgS.length, txS.length, tnS.length, rhS.length);
-  const sTg = summary(tgS);
-  const sTx = summary(txS);
-  const sTn = summary(tnS);
-  const sRh = summary(rhS);
+  // The validated EDR dataset already serves SI units (°C and mm).
+  const samples = Math.max(tg.length, tx.length, tn.length, rh.length);
+  const sTg = summary(tg);
+  const sTx = summary(tx);
+  const sTn = summary(tn);
+  const sRh = summary(rh);
 
   const normal: ClimateNormal | null = samples > 0
     ? {

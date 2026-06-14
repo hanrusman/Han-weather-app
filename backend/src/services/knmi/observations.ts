@@ -16,26 +16,36 @@ import { knmiGetJson, haversineKm } from './client';
 const EDR_BASE = 'https://api.dataplatform.knmi.nl/edr/v1';
 const COLLECTION = '10-minute-in-situ-meteorological-observations';
 
-/** KNMI parameter codes we surface (and how to read them). */
+/**
+ * KNMI parameter codes we surface (and how to read them).
+ *
+ * Verified against the live `parameter_names` block on the collection
+ * metadata endpoint (June 2026). Codes are case-sensitive — lowercase
+ * for 1-min/10-min realtime fields, uppercase like `R1H` for aggregated
+ * rates.
+ */
 const PARAMS = {
-  ta: 'temperature',          // air temperature, °C
-  td: 'dewPoint',             // dew point, °C
-  uu: 'humidity',             // relative humidity, %
-  ff: 'windSpeed',            // 10-min mean wind speed, m/s
-  fx: 'windGust',             // wind gust, m/s
-  dd: 'windDirection',        // wind direction, °
-  pp: 'pressure',             // sea-level pressure, hPa
-  vv: 'visibility',           // horizontal visibility, m
-  sq: 'sunshineDuration',     // sunshine duration last 10 min, min
-  Q: 'globalRadiation',       // global radiation, W/m²
-  nc: 'cloudCover',           // cloud cover, octa
-  rh: 'precipitation',        // precipitation last 10 min, mm
+  ta:  'temperature',       // Air Temperature 1 Min Mean, °C
+  td:  'dewPoint',          // Dew Point Temperature 1 Min Mean, °C
+  rh:  'humidity',          // Relative Humidity 1 Min Mean, %
+  ff:  'windSpeed',         // Wind Speed at 10 m Mean, m/s
+  fx:  'windGust',          // Wind Gust at 10 m Maximum, m/s
+  dd:  'windDirection',     // Wind Direction Mean, °
+  pp:  'pressure',          // Air Pressure at MSL 1 Min Mean, hPa
+  vv:  'visibility',        // Horizontal Visibility Mean, m
+  qg:  'globalRadiation',   // Global Solar Radiation Mean, W/m²
+  n:   'cloudCover',        // Total Cloud Cover, octa
+  R1H: 'precipitation',     // Rainfall in last Hour, mm
 } as const;
 
 type ParamKey = keyof typeof PARAMS;
 type Friendly = (typeof PARAMS)[ParamKey];
 
 const PARAM_QUERY = Object.keys(PARAMS).join(',');
+/** EDR rejects queries that span the full dataset history; only ask for the
+ *  most recent hour — at one 10-min sample / param that's well below the
+ *  300k-datapoints quota. */
+const RECENT_WINDOW_MS = 60 * 60 * 1000;
 
 export interface ObservationStation {
   id: string;
@@ -70,8 +80,9 @@ export interface ObservationsResponse {
 
 interface LocationsGeoJson {
   features?: {
+    /** Full WIGOS id, e.g. "0-20000-0-06240" — required by /locations/{id} */
     id?: string;
-    properties?: { name?: string; id?: string };
+    properties?: { name?: string; wmoId?: string };
     geometry?: { coordinates?: [number, number] }; // [lon, lat]
   }[];
 }
@@ -90,7 +101,10 @@ async function fetchStations(): Promise<ObservationStation[]> {
 
   const stations: ObservationStation[] = [];
   for (const f of r.data.features) {
-    const id = String(f.properties?.id ?? f.id ?? '').trim();
+    // KNMI uses WIGOS station identifiers (e.g. "0-20000-0-06240") at the
+    // top level. The shorter WMO code lives in properties.wmoId but isn't
+    // a valid lookup key on /locations/{id}.
+    const id = String(f.id ?? '').trim();
     const coords = f.geometry?.coordinates;
     if (!id || !coords) continue;
     stations.push({
@@ -119,17 +133,26 @@ function nearestStation(stations: ObservationStation[], lat: number, lon: number
 }
 
 /**
- * EDR response is CoverageJSON. Two shapes seen in the wild:
- *   { ranges: { ta: { values: [...] }, … }, domain: { axes: { t: { values: [iso] } } } }
- *   { parameters: { ta: { ... } }, ranges: { … } }
- * We just look at `ranges[*].values` and assume the latest index = newest.
+ * EDR returns CoverageJSON. The shape is `CoverageCollection` with one
+ * coverage element wrapping the actual `domain` + `ranges`. We unwrap
+ * to a single coverage and read latest non-null value per parameter.
  */
-interface CoverageJson {
+interface Coverage {
   domain?: { axes?: { t?: { values?: string[] } } };
   ranges?: Record<string, { values?: (number | null)[] }>;
 }
+interface CoverageJson extends Coverage {
+  /** Present on CoverageCollection responses */
+  coverages?: Coverage[];
+}
 
-function extractLatest(coverage: CoverageJson): { values: ObservationValues; observedAt: string | null } {
+function unwrapCoverage(payload: CoverageJson): Coverage {
+  if (payload.coverages?.length) return payload.coverages[0];
+  return payload;
+}
+
+function extractLatest(payload: CoverageJson): { values: ObservationValues; observedAt: string | null } {
+  const coverage = unwrapCoverage(payload);
   const out: ObservationValues = {};
   let observedAt: string | null = null;
 
@@ -180,7 +203,13 @@ export async function fetchObservations(lat: number, lon: number): Promise<Obser
   const station = nearestStation(stations, lat, lon);
   if (!station) return baseResp;
 
-  const url = `${EDR_BASE}/collections/${COLLECTION}/locations/${encodeURIComponent(station.id)}?parameter-name=${PARAM_QUERY}`;
+  // Without a `datetime` range EDR refuses queries that exceed 300k data
+  // points. Restrict to the most recent hour.
+  const end = new Date();
+  const start = new Date(end.getTime() - RECENT_WINDOW_MS);
+  const isoNoMs = (d: Date) => d.toISOString().replace(/\.\d+/, '');
+  const datetime = `${isoNoMs(start)}/${isoNoMs(end)}`;
+  const url = `${EDR_BASE}/collections/${COLLECTION}/locations/${encodeURIComponent(station.id)}?parameter-name=${PARAM_QUERY}&datetime=${encodeURIComponent(datetime)}`;
   const r = await knmiGetJson<CoverageJson>(url, config.knmiEdrApiKey, { logLabel: 'edr:obs' });
   if (!r.data) {
     const status: ObservationsResponse['source'] =
